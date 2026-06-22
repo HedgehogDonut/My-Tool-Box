@@ -167,10 +167,264 @@ PAGE_SIZES = {
     'Legal (8.5×14")':  legal,
 }
 
+# Markdown document colors per code theme
+MD_DOC_COLORS = {
+    "VSCode Dark+":   {"bg":"#1e1e1e","text":"#d4d4d4","h1":"#4ec9b0","h2":"#569cd6","h3":"#dcdcaa","code_bg":"#252526","code_text":"#ce9178","bq_border":"#3c5a78","bq_bg":"#1e2b33","link":"#4ec9b0","hr":"#3c3c3c"},
+    "VSCode Light+":  {"bg":"#ffffff","text":"#000000","h1":"#267f99","h2":"#0000ff","h3":"#795e26","code_bg":"#f3f3f3","code_text":"#a31515","bq_border":"#cccccc","bq_bg":"#f8f8f8","link":"#0000ff","hr":"#e0e0e0"},
+    "Monokai":        {"bg":"#272822","text":"#f8f8f2","h1":"#a6e22e","h2":"#66d9ef","h3":"#e6db74","code_bg":"#3e3d32","code_text":"#e6db74","bq_border":"#75715e","bq_bg":"#3e3d32","link":"#66d9ef","hr":"#3e3d32"},
+    "Dracula":        {"bg":"#282a36","text":"#f8f8f2","h1":"#50fa7b","h2":"#8be9fd","h3":"#f1fa8c","code_bg":"#21222c","code_text":"#f1fa8c","bq_border":"#6272a4","bq_bg":"#21222c","link":"#8be9fd","hr":"#44475a"},
+    "Solarized Dark": {"bg":"#002b36","text":"#839496","h1":"#268bd2","h2":"#2aa198","h3":"#859900","code_bg":"#073642","code_text":"#2aa198","bq_border":"#586e75","bq_bg":"#073642","link":"#268bd2","hr":"#073642"},
+    "GitHub Light":   {"bg":"#ffffff","text":"#24292e","h1":"#1f2328","h2":"#1f2328","h3":"#555555","code_bg":"#f6f8fa","code_text":"#24292e","bq_border":"#d0d7de","bq_bg":"#f6f8fa","link":"#0969da","hr":"#d0d7de"},
+}
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PDF GENERATION
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ── Markdown HTML → reportlab parser ──────────────────────────────────────────
+
+class _MdHTMLParser:
+    """Converts HTML (from markdown()) into a list of reportlab Platypus flowables."""
+
+    def __init__(self, styles: dict, link_color):
+        from html.parser import HTMLParser as _HP
+
+        self._styles = styles
+        self._link_color = link_color
+        self.story: list = []
+
+        class _Inner(_HP):
+            def __init__(inner, outer):
+                super().__init__(convert_charrefs=True)
+                inner.o = outer
+            def handle_starttag(inner, tag, attrs): inner.o._start(tag, dict(attrs))
+            def handle_endtag(inner, tag):          inner.o._end(tag)
+            def handle_data(inner, data):           inner.o._data(data)
+
+        self._p = _Inner(self)
+        self._tag_stack: list[str] = []
+        self._buf = ""
+        self._in_pre = False
+        self._pre_buf = ""
+        self._list_stack: list[list] = []
+        self._in_bq = False
+        self._bq_parts: list[str] = []
+
+    def feed(self, html: str):
+        self._p.feed(html)
+
+    def get_story(self) -> list:
+        self._flush_buf("body")
+        return self.story
+
+    # ── internal ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _esc(t: str) -> str:
+        return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _flush_buf(self, style_key: str = "body"):
+        from reportlab.platypus import Paragraph, Spacer
+        text = self._buf.strip()
+        self._buf = ""
+        if text:
+            self.story.append(Paragraph(text, self._styles[style_key]))
+            self.story.append(Spacer(1, 4))
+
+    def _start(self, tag: str, attrs: dict):
+        from reportlab.platypus import HRFlowable, Spacer
+        self._tag_stack.append(tag)
+
+        if tag in ("h1","h2","h3","h4","h5","h6"):
+            self._flush_buf("body")
+        elif tag == "pre":
+            self._flush_buf("body")
+            self._in_pre = True; self._pre_buf = ""
+        elif tag in ("ul","ol"):
+            self._flush_buf("body")
+            self._list_stack.append([tag, 0])
+        elif tag == "li":
+            self._flush_buf("body")
+        elif tag == "blockquote":
+            self._flush_buf("body")
+            self._in_bq = True; self._bq_parts = []
+        elif tag == "hr":
+            self._flush_buf("body")
+            self.story.append(HRFlowable(width="100%", thickness=0.5,
+                                          color=self._styles["_hr_color"]))
+            self.story.append(Spacer(1, 6))
+        elif tag == "br":
+            self._buf += "<br/>"
+        elif tag in ("strong","b"):
+            self._buf += "<b>"
+        elif tag in ("em","i"):
+            self._buf += "<i>"
+        elif tag == "code" and not self._in_pre:
+            self._buf += '<font name="Courier">'
+        elif tag == "a":
+            href = attrs.get("href","")
+            self._buf += f'<link href="{self._esc(href)}">'
+        elif tag == "img":
+            self._buf += f'[{self._esc(attrs.get("alt","image"))}]'
+
+    def _end(self, tag: str):
+        from reportlab.platypus import Paragraph, Spacer, Preformatted
+        from reportlab.lib.styles import ParagraphStyle
+        if self._tag_stack and self._tag_stack[-1] == tag:
+            self._tag_stack.pop()
+
+        if tag in ("h1","h2","h3","h4","h5","h6"):
+            text = self._buf.strip(); self._buf = ""
+            if text:
+                sk = {"h1":"h1","h2":"h2"}.get(tag,"h3")
+                self.story.append(Spacer(1, 6))
+                self.story.append(Paragraph(text, self._styles[sk]))
+                self.story.append(Spacer(1, 4))
+        elif tag == "p":
+            text = self._buf.strip(); self._buf = ""
+            if text:
+                if self._in_bq:
+                    self._bq_parts.append(text)
+                else:
+                    sk = "li_body" if self._list_stack else "body"
+                    self.story.append(Paragraph(text, self._styles[sk]))
+                    self.story.append(Spacer(1, 4))
+        elif tag == "pre":
+            self._in_pre = False
+            code = self._pre_buf.strip("\n")
+            if code:
+                self.story.append(Preformatted(code, self._styles["code"]))
+                self.story.append(Spacer(1, 6))
+            self._pre_buf = ""
+        elif tag == "li":
+            text = self._buf.strip(); self._buf = ""
+            if text and self._list_stack:
+                lt, cnt = self._list_stack[-1]
+                if lt == "ul":
+                    bullet = "•  "
+                else:
+                    self._list_stack[-1][1] = cnt + 1
+                    bullet = f"{cnt+1}.  "
+                indent = (len(self._list_stack)-1) * 18
+                li_style = ParagraphStyle("_li", parent=self._styles["body"],
+                                          leftIndent=indent+16,
+                                          spaceBefore=1, spaceAfter=1)
+                self.story.append(Paragraph(bullet + text, li_style))
+        elif tag in ("ul","ol"):
+            if self._list_stack: self._list_stack.pop()
+            self.story.append(Spacer(1, 5))
+        elif tag == "blockquote":
+            self._in_bq = False
+            text = " ".join(self._bq_parts).strip()
+            if text:
+                self.story.append(Paragraph(text, self._styles["bq"]))
+                self.story.append(Spacer(1, 4))
+            self._bq_parts = []
+        elif tag in ("strong","b"):  self._buf += "</b>"
+        elif tag in ("em","i"):      self._buf += "</i>"
+        elif tag == "code" and not self._in_pre: self._buf += "</font>"
+        elif tag == "a":             self._buf += "</link>"
+
+    def _data(self, data: str):
+        if self._in_pre:
+            self._pre_buf += data
+        else:
+            self._buf += self._esc(data)
+
+
+def generate_md_pdf(
+    md_file: str,
+    output_file: str,
+    theme_name: str,
+    page_size_name: str,
+    orientation: str,
+    font_size: int,
+    show_header: bool,
+    progress_callback=None,
+):
+    """Generate a styled PDF from a Markdown file."""
+    try:
+        import markdown as _md
+    except ImportError:
+        import subprocess, sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "markdown"])
+        import markdown as _md
+
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+
+    mc = MD_DOC_COLORS.get(theme_name, MD_DOC_COLORS["GitHub Light"])
+
+    bg_c      = _hex_to_color(mc["bg"])
+    text_c    = _hex_to_color(mc["text"])
+    h1_c      = _hex_to_color(mc["h1"])
+    h2_c      = _hex_to_color(mc["h2"])
+    h3_c      = _hex_to_color(mc["h3"])
+    code_bg_c = _hex_to_color(mc["code_bg"])
+    code_c    = _hex_to_color(mc["code_text"])
+    bq_bg_c   = _hex_to_color(mc["bq_bg"])
+    bq_bdr_c  = _hex_to_color(mc["bq_border"])
+    link_c    = _hex_to_color(mc["link"])
+    hr_c      = _hex_to_color(mc["hr"])
+
+    base_size = PAGE_SIZES[page_size_name]
+    if orientation == "Landscape":
+        from reportlab.lib.pagesizes import landscape
+        page_size = landscape(base_size)
+    else:
+        page_size = base_size
+    page_w, page_h = page_size
+
+    margin   = 0.9 * inch
+    header_h = 0.4 * inch if show_header else 0
+
+    fs = font_size
+    styles_map = {
+        "body":    ParagraphStyle("body",   fontName="Helvetica",          fontSize=fs,      textColor=text_c,  leading=fs*1.65, spaceAfter=6),
+        "h1":      ParagraphStyle("h1",     fontName="Helvetica-Bold",     fontSize=fs*2.0,  textColor=h1_c,    leading=fs*2.5,  spaceBefore=12, spaceAfter=8),
+        "h2":      ParagraphStyle("h2",     fontName="Helvetica-Bold",     fontSize=fs*1.5,  textColor=h2_c,    leading=fs*2.0,  spaceBefore=10, spaceAfter=6),
+        "h3":      ParagraphStyle("h3",     fontName="Helvetica-Bold",     fontSize=fs*1.2,  textColor=h3_c,    leading=fs*1.7,  spaceBefore=8,  spaceAfter=4),
+        "code":    ParagraphStyle("code",   fontName="Courier",            fontSize=fs*0.85, textColor=code_c,  leading=fs*1.3,  backColor=code_bg_c, leftIndent=10, rightIndent=10, spaceAfter=8, spaceBefore=6, borderPadding=8),
+        "bq":      ParagraphStyle("bq",     fontName="Helvetica-Oblique",  fontSize=fs,      textColor=text_c,  leading=fs*1.65, leftIndent=14, borderColor=bq_bdr_c, borderWidth=3, borderPadding=(4,8,4,10), backColor=bq_bg_c, spaceAfter=8),
+        "li_body": ParagraphStyle("li_body",fontName="Helvetica",          fontSize=fs,      textColor=text_c,  leading=fs*1.65, spaceBefore=1, spaceAfter=1),
+        "_hr_color": hr_c,
+    }
+
+    with open(md_file, "r", encoding="utf-8", errors="replace") as f:
+        md_text = f.read()
+
+    md_conv = _md.Markdown(extensions=["fenced_code", "tables", "sane_lists"])
+    html_content = md_conv.convert(md_text)
+
+    parser = _MdHTMLParser(styles_map, link_c)
+    parser.feed(html_content)
+    story = parser.get_story()
+
+    def on_page(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(bg_c)
+        canvas.rect(0, 0, page_w, page_h, fill=1, stroke=0)
+        if show_header:
+            canvas.setFillColor(hr_c)
+            canvas.rect(0, page_h - header_h, page_w, header_h, fill=1, stroke=0)
+            canvas.setFillColor(text_c)
+            canvas.setFont("Helvetica-Bold", 8)
+            canvas.drawString(margin, page_h - 0.27*inch, os.path.basename(md_file))
+            canvas.setFont("Helvetica", 8)
+            canvas.drawRightString(page_w - margin, page_h - 0.27*inch, f"Page {doc.page}")
+        canvas.restoreState()
+
+    doc = SimpleDocTemplate(
+        output_file, pagesize=page_size,
+        leftMargin=margin, rightMargin=margin,
+        topMargin=margin + header_h, bottomMargin=margin,
+        title=os.path.basename(md_file),
+    )
+    doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
+
+    if progress_callback:
+        progress_callback(100)
 
 def _hex_to_color(h: str) -> Color:
     h = h.lstrip("#")
@@ -392,8 +646,8 @@ class App(tk.Tk):
         # Title bar
         top = ttk.Frame(self)
         top.pack(fill="x", padx=24, pady=(18, 4))
-        ttk.Label(top, text="Python → PDF", style="H1.TLabel").pack(anchor="w")
-        ttk.Label(top, text="Convert .py files to syntax-highlighted PDFs with VSCode-style themes",
+        ttk.Label(top, text="Code & Markdown → PDF", style="H1.TLabel").pack(anchor="w")
+        ttk.Label(top, text="Convert .py and .md files to styled PDFs",
                   style="Dim.TLabel").pack(anchor="w")
 
         # Two-column body
@@ -553,8 +807,13 @@ class App(tk.Tk):
 
     def _browse_input(self):
         path = filedialog.askopenfilename(
-            title="Select Python file",
-            filetypes=[("Python files", "*.py"), ("All files", "*.*")],
+            title="Select file",
+            filetypes=[
+                ("Supported files", "*.py *.pyw *.md *.markdown"),
+                ("Python files", "*.py *.pyw"),
+                ("Markdown files", "*.md *.markdown"),
+                ("All files", "*.*"),
+            ],
         )
         if path:
             self.input_var.set(path)
@@ -649,7 +908,7 @@ print(f"Done: {result}")
         dst = self.output_var.get().strip()
 
         if not src:
-            messagebox.showerror("Missing input", "Please select a Python (.py) file.")
+            messagebox.showerror("Missing input", "Please select a .py or .md file.")
             return
         if not os.path.isfile(src):
             messagebox.showerror("Not found", f"File does not exist:\n{src}")
@@ -662,19 +921,34 @@ print(f"Done: {result}")
         self.progress_var.set(0)
         self.status_var.set("Starting…")
 
+        ext = os.path.splitext(src)[1].lower()
+        is_md = ext in (".md", ".markdown")
+
         def _run():
             try:
-                generate_pdf(
-                    python_file=src,
-                    output_file=dst,
-                    theme_name=self.theme_var.get(),
-                    page_size_name=self.page_size_var.get(),
-                    orientation=self.orientation_var.get(),
-                    font_size=self.font_size_var.get(),
-                    show_line_numbers=self.show_line_nums.get(),
-                    show_header=self.show_header.get(),
-                    progress_callback=self._update_progress,
-                )
+                if is_md:
+                    generate_md_pdf(
+                        md_file=src,
+                        output_file=dst,
+                        theme_name=self.theme_var.get(),
+                        page_size_name=self.page_size_var.get(),
+                        orientation=self.orientation_var.get(),
+                        font_size=self.font_size_var.get(),
+                        show_header=self.show_header.get(),
+                        progress_callback=self._update_progress,
+                    )
+                else:
+                    generate_pdf(
+                        python_file=src,
+                        output_file=dst,
+                        theme_name=self.theme_var.get(),
+                        page_size_name=self.page_size_var.get(),
+                        orientation=self.orientation_var.get(),
+                        font_size=self.font_size_var.get(),
+                        show_line_numbers=self.show_line_nums.get(),
+                        show_header=self.show_header.get(),
+                        progress_callback=self._update_progress,
+                    )
                 self.after(0, self._on_success, dst)
             except Exception as exc:
                 self.after(0, self._on_error, str(exc))
