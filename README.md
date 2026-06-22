@@ -2,7 +2,7 @@
 
 Convert Python source files into beautifully syntax-highlighted PDFs with VSCode-style themes.
 
-Two versions — pick whichever suits you:
+Two versions 
 
 | | `converter.html` | `py_to_pdf.py` |
 |---|---|---|
