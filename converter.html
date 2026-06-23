@@ -836,9 +836,30 @@ markedRenderer.code = function(tokenOrText, infoOrLang) {
 marked.use({ renderer: markedRenderer, gfm: true, breaks: false });
 
 function renderMarkdown(source, filename) {
-  const html = marked.parse(source);
+  // 1. TEMPORARILY HIDE MATH FROM MARKED.JS
+  let mathBlocks = [];
+  
+  // Hide block math ($$ ... $$)
+  let protectedSource = source.replace(/\$\$([\s\S]+?)\$\$/g, function(match) {
+    mathBlocks.push(match);
+    return '%%%MATH_BLOCK_' + (mathBlocks.length - 1) + '%%%';
+  });
+
+  // 2. PARSE MARKDOWN
+  let html = marked.parse(protectedSource);
+
+  // 3. RESTORE THE MATH BLOCKS EXACTLY AS THEY WERE
+  html = html.replace(/<p>%%%MATH_BLOCK_(\d+)%%%<\/p>/g, function(match, i) {
+    return mathBlocks[i]; // Remove wrapping <p> tags marked.js might add
+  });
+  html = html.replace(/%%%MATH_BLOCK_(\d+)%%%/g, function(match, i) {
+    return mathBlocks[i];
+  });
+
+  // 4. INJECT HTML
   document.getElementById("md-content").innerHTML = html;
 
+  // 5. RENDER MATH (KaTeX now sees pristine, un-mangled LaTeX)
   if (typeof renderMathInElement !== "undefined") {
     renderMathInElement(document.getElementById("md-content"), {
       delimiters: [
