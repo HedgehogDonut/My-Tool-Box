@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Folder Scaffolder</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 30px;
+        }
+        h1 { color: #2c3e50; margin-bottom: 20px;}
+        .container {
+            display: flex;
+            gap: 20px;
+            height: 60vh;
+        }
+        .box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h3 { margin-top: 0; color: #2980b9; }
+        textarea, pre {
+            flex: 1;
+            width: 100%;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: none;
+        }
+        pre {
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        #btn-preview { background-color: #f39c12; }
+        #btn-build { background-color: #27ae60; }
+        #btn-build:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .notice { font-size: 13px; color: #7f8c8d; margin-top: 10px;}
+    </style>
+</head>
+<body>
+
+    <h1>📁 Universal Folder Scaffolder</h1>
+    <div class="notice">Works in Google Chrome or Microsoft Edge. Paste your indented structure below.</div>
+
+    <div class="container" style="margin-top: 20px;">
+        <div class="box">
+            <h3>1. Paste Structure Here</h3>
+            <textarea id="inputText">Project_Root
+    01_Admin
+        Meetings
+    02_Data
+        Raw
+        Cleaned
+    03_Models</textarea>
+        </div>
+
+        <div class="box">
+            <h3>2. Preview</h3>
+            <pre id="previewBox">Click "Generate Preview" to see the structure here...</pre>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="btn-preview" onclick="generatePreview()">👀 Generate Preview</button>
+        <button id="btn-build" onclick="buildFolders()" disabled>🚀 Select Target & Build Folders</button>
+    </div>
+
+    <script>
+        let pathsToBuild = [];
+
+        function generatePreview() {
+            const text = document.getElementById("inputText").value;
+            const lines = text.split('\n');
+            pathsToBuild = [];
+            
+            let levels = []; // Stack to keep track of {indent, path}
+            let previewHTML = "";
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+
+                // Calculate indentation (handles spaces and tabs)
+                const rawIndent = line.match(/^[\s\t]*/)[0];
+                const indent = rawIndent.replace(/\t/g, '    ').length;
+                const folderName = line.trim();
+
+                // Pop out of levels that are deeper or equal to current indent
+                while (levels.length > 0 && levels[levels.length - 1].indent >= indent) {
+                    levels.pop();
+                }
+
+                let currentPath;
+                if (levels.length === 0) {
+                    currentPath = folderName;
+                } else {
+                    currentPath = levels[levels.length - 1].path + '/' + folderName;
+                }
+
+                levels.push({ indent: indent, path: currentPath });
+                pathsToBuild.push(currentPath);
+
+                // Format preview tree
+                const prefix = levels.length > 1 ? "│   ".repeat(levels.length - 2) + "├── " : "📁 ";
+                previewHTML += prefix + folderName + "\n";
+            }
+
+            document.getElementById("previewBox").innerText = previewHTML;
+            
+            // Enable the build button if there are valid paths
+            if (pathsToBuild.length > 0) {
+                document.getElementById("btn-build").disabled = false;
+            } else {
+                document.getElementById("btn-build").disabled = true;
+            }
+        }
+
+        async function buildFolders() {
+            if (!window.showDirectoryPicker) {
+                alert("⚠️ Your browser doesn't support the File System Access API.\nPlease open this HTML file in Google Chrome or Microsoft Edge.");
+                return;
+            }
+
+            try {
+                // 1. Ask user to pick a target directory
+                const rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                let successCount = 0;
+
+                // 2. Loop through our calculated paths and build them
+                for (let path of pathsToBuild) {
+                    const parts = path.split('/');
+                    let currentHandle = rootHandle;
+
+                    for (let part of parts) {
+                        // Recursively create/get directories
+                        currentHandle = await currentHandle.getDirectoryHandle(part, { create: true });
+                    }
+                    successCount++;
+                }
+
+                alert(`🎉 Success! Built ${successCount} folders inside your selected directory.`);
+                
+            } catch (error) {
+                // User cancelled or browser blocked it
+                if (error.name === 'AbortError') {
+                    console.log("User cancelled the folder selection.");
+                } else {
+                    alert("❌ Error creating folders:\n" + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+Please help me design a folder structure for my project. 
+
+[Specify ur goal here：I am doing a soil modeling research...]
+
+CRITICAL OUTPUT REQUIREMENT:
+Once you design the structure, you MUST output the final structure in a raw, plain-text format inside a code block, adhering strictly to these rules:
+1. DO NOT use any tree characters (like ├──, │, or └──).
+2. DO NOT include any comments (like # explanations).
+3. Use exactly 4 spaces of indentation for each nested level.
+4. Only output the folder names. 
+
+Example expected output format:
+Project_Name
+    01_Admin
+    02_Data
+        Raw_Data
+        Cleaned_Data
