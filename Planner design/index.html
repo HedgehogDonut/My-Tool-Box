@@ -1,0 +1,2628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom Planner — Printable Planner Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Caveat:wght@400;600&family=Patrick+Hand&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #faf9f7;
+  --sidebar-bg: #ffffff;
+  --accent: #f9a8d4;
+  --accent2: #c4b5fd;
+  --accent3: #86efac;
+  --text: #374151;
+  --text-muted: #9ca3af;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --font-ui: 'Inter', sans-serif;
+  /* Theme overrides via JS */
+  --theme-primary: #f9a8d4;
+  --theme-light: #fce7f3;
+  --theme-grid: rgba(249,168,212,0.25);
+  --theme-line: rgba(0,0,0,0.10);
+  --planner-font: 'Inter', sans-serif;
+  --planner-ink: #374151;
+  --planner-scale: 1;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── Sidebar ───────────────────────────────────────────── */
+#sidebar {
+  width: 300px;
+  min-width: 280px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.04);
+  z-index: 10;
+}
+
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #fce7f3 0%, #ede9fe 100%);
+  flex-shrink: 0;
+}
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #6b21a8;
+  letter-spacing: -0.3px;
+}
+.sidebar-header p {
+  font-size: 11px;
+  color: #9333ea;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 10px;
+  background: var(--theme-primary);
+  border-radius: 2px;
+}
+
+/* Controls */
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.control-row:last-child { margin-bottom: 0; }
+.control-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+select, input[type="text"] {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+select:focus { border-color: var(--theme-primary); }
+
+/* Toggle switches */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+}
+.toggle-label { font-size: 12px; color: var(--text); }
+.toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle input:checked + .toggle-slider { background: var(--theme-primary); }
+.toggle input:checked + .toggle-slider::after { transform: translateX(16px); }
+
+/* Color theme picker */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 4px;
+}
+.theme-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+.theme-swatch:hover { transform: scale(1.1); }
+.theme-swatch.active { border-color: #374151; }
+.theme-swatch.active::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(0,0,0,0.6);
+  font-weight: 700;
+}
+
+/* Print button */
+.print-btn {
+  margin: 14px 16px 16px;
+  padding: 11px;
+  background: linear-gradient(135deg, var(--theme-primary), var(--accent2));
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  width: calc(100% - 32px);
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 12px rgba(249,168,212,0.4);
+}
+.print-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.print-btn:active { transform: translateY(0); }
+
+/* Module checkboxes */
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.module-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+  user-select: none;
+}
+.module-chip input { display: none; }
+.module-chip .chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.module-chip:has(input:checked) {
+  border-color: var(--theme-primary);
+  background: var(--theme-light);
+  color: #6b21a8;
+}
+.module-chip:has(input:checked) .chip-dot { background: var(--theme-primary); }
+
+/* ─── Preview Area ──────────────────────────────────────── */
+#preview-area {
+  flex: 1;
+  overflow: auto;
+  background: #e8e5e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px;
+  gap: 24px;
+  position: relative;
+}
+
+.preview-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgba(232,229,224,0.9);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  box-shadow: var(--shadow);
+  margin-bottom: 4px;
+}
+.preview-badge {
+  background: var(--theme-light);
+  color: #9333ea;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+/* ─── Planner Pages ─────────────────────────────────────── */
+.planner-page {
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--planner-font);
+  flex-shrink: 0;
+}
+
+/* Page size scaling (preview at 0.7x) */
+.planner-page[data-size="A4"]         { width: 595px; min-height: 842px; }
+.planner-page[data-size="A5"]         { width: 420px; min-height: 595px; }
+.planner-page[data-size="Letter"]     { width: 612px; min-height: 792px; }
+.planner-page[data-size="Half-Letter"]{ width: 396px; min-height: 612px; }
+.planner-page[data-size="B6"]         { width: 354px; min-height: 500px; }
+
+/* ─── BACKGROUNDS ───────────────────────────────────────── */
+.bg-blank { background: #fff; }
+
+.bg-lined {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent calc(var(--line-height, 24px) - 1px),
+    var(--theme-line) calc(var(--line-height, 24px) - 1px),
+    var(--theme-line) var(--line-height, 24px)
+  );
+}
+
+.bg-dot {
+  background-image: radial-gradient(circle, var(--theme-line) 1px, transparent 1px);
+  background-size: var(--dot-spacing, 5mm) var(--dot-spacing, 5mm);
+}
+
+.bg-square {
+  background-image:
+    linear-gradient(var(--theme-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--theme-line) 1px, transparent 1px);
+  background-size: var(--grid-size, 3.7mm) var(--grid-size, 3.7mm);
+}
+
+/* ─── PAGE INNER PADDING ────────────────────────────────── */
+.page-inner {
+  padding: 32px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.page-inner.binding-left  { padding-left: 48px; }
+.page-inner.binding-right { padding-right: 48px; }
+
+/* ─── YEARLY PAGE ───────────────────────────────────────── */
+.yearly-page {}
+.page-section-title {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--theme-primary);
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+.year-number {
+  font-size: 48px;
+  font-weight: 300;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 24px;
+  letter-spacing: -2px;
+}
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  flex: 1;
+}
+.mini-month { }
+.mini-month-name {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--theme-primary);
+  margin-bottom: 4px;
+}
+.mini-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.mini-cal-header {
+  font-size: 6px;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 1px 0;
+}
+.mini-cal-day {
+  font-size: 6.5px;
+  text-align: center;
+  padding: 1.5px 0;
+  border-radius: 2px;
+  color: var(--text);
+}
+.mini-cal-day.today {
+  background: var(--theme-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.mini-cal-day.empty { color: transparent; }
+
+/* Future log */
+.future-log { margin-top: 20px; }
+.future-log-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.future-log-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.future-log-month {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--theme-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.log-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-line {
+  height: 1px;
+  background: var(--border);
+  border-radius: 1px;
+}
+
+/* ─── MONTHLY PAGE ──────────────────────────────────────── */
+.monthly-layout {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 16px;
+  flex: 1;
+}
+.month-cal-area {}
+.month-title {
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.month-grid-header {
+  background: var(--theme-light);
+  text-align: center;
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--theme-primary);
+  padding: 5px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.month-grid-cell {
+  border: 1px solid var(--border);
+  min-height: 48px;
+  padding: 3px 4px;
+}
+.month-grid-cell .day-num {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.month-grid-cell.today .day-num {
+  background: var(--theme-primary);
+  color: #fff;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.month-sidebar {}
+.sidebar-widget {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.widget-title {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--theme-primary);
+  margin-bottom: 6px;
+}
+.widget-lines { display: flex; flex-direction: column; gap: 5px; }
+.widget-line { height: 1px; background: var(--border); }
+
+/* ─── WEEKLY (VERTICAL) ─────────────────────────────────── */
+.weekly-vertical {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  flex: 1;
+}
+.week-day-col { display: flex; flex-direction: column; }
+.week-day-header {
+  text-align: center;
+  padding: 6px 4px;
+  background: var(--theme-light);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.week-day-name {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--theme-primary);
+}
+.week-day-num {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text);
+  line-height: 1.2;
+}
+.week-timetable {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.time-slot {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  min-height: 14px;
+}
+.time-label {
+  font-size: 5.5px;
+  color: var(--text-muted);
+  width: 16px;
+  flex-shrink: 0;
+  padding-top: 1px;
+  line-height: 1;
+}
+.time-space { flex: 1; }
+
+/* ─── WEEKLY (HORIZONTAL) ───────────────────────────────── */
+.weekly-horizontal {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 4px;
+  flex: 1;
+}
+.week-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  min-height: 40px;
+}
+.week-row-header {
+  background: var(--theme-light);
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.week-row-body { padding: 4px 6px; }
+
+/* ─── DAILY (HOBO STYLE) ────────────────────────────────── */
+.daily-hobo {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px;
+  flex: 1;
+}
+.hobo-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.hobo-time-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.hobo-hour {
+  font-size: 6.5px;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: right;
+  padding-top: 1px;
+  line-height: 1;
+}
+.hobo-block { flex: 1; }
+.hobo-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hobo-mini-month-corner {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+}
+.hobo-notes {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  position: relative;
+}
+
+/* ─── DAILY (VERTICAL BOX / EC STYLE) ──────────────────── */
+.daily-ec {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.ec-day-header {
+  background: var(--theme-primary);
+  color: #fff;
+  padding: 10px 16px;
+  margin: -32px -32px 16px -32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ec-day-name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.ec-day-num  { font-size: 28px; font-weight: 300; line-height: 1; }
+.ec-boxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  flex: 1;
+}
+.ec-box {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ec-box-header {
+  background: var(--theme-light);
+  padding: 5px 8px;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--theme-primary);
+}
+.ec-box-body { flex: 1; padding: 6px; }
+
+/* ─── TRAVELER STYLE ────────────────────────────────────── */
+.daily-traveler {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.traveler-date-line {
+  border-bottom: 2px solid var(--theme-primary);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.traveler-day-big { font-size: 32px; font-weight: 300; line-height: 1; }
+.traveler-meta { font-size: 9px; color: var(--text-muted); }
+.traveler-sections { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.traveler-section-label {
+  font-size: 7.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--theme-primary);
+  margin-bottom: 4px;
+}
+.traveler-lines { display: flex; flex-direction: column; gap: 18px; }
+.traveler-line-rule { height: 1px; background: var(--border); }
+
+/* ─── HABIT TRACKER ─────────────────────────────────────── */
+.habit-tracker { }
+.habit-grid {
+  display: grid;
+  grid-template-columns: 100px repeat(31, 1fr);
+  gap: 1.5px;
+}
+.habit-header-cell {
+  font-size: 5.5px;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 0;
+}
+.habit-name-cell {
+  font-size: 7px;
+  color: var(--text);
+  padding: 2px 0;
+  border-right: 1px solid var(--border);
+}
+.habit-check-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+/* ─── WATER INTAKE ──────────────────────────────────────── */
+.water-tracker {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.water-drop {
+  font-size: 18px;
+  opacity: 0.2;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* ─── MOOD GRID ─────────────────────────────────────────── */
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.mood-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-size: 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 2px;
+  color: var(--text-muted);
+}
+
+/* ─── MEAL PLANNER ──────────────────────────────────────── */
+.meal-grid {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 3px;
+}
+.meal-row-header {
+  font-size: 7px;
+  font-weight: 600;
+  color: var(--theme-primary);
+  display: flex;
+  align-items: center;
+}
+.meal-cell {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  min-height: 30px;
+  padding: 2px 3px;
+  font-size: 6px;
+  color: var(--text-muted);
+}
+
+/* ─── PAGE HEADER STRIP ─────────────────────────────────── */
+.page-top-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--theme-primary);
+  opacity: 0.8;
+}
+.page-top-strip .strip-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--theme-primary);
+}
+.page-top-strip .strip-date {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* ─── PAGE NUMBERS ──────────────────────────────────────── */
+.page-number {
+  position: absolute;
+  bottom: 16px;
+  right: 24px;
+  font-size: 8px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* ─── ORIENTATION ───────────────────────────────────────── */
+.planner-page[data-orient="landscape"][data-size="A4"]          { width: 842px; min-height: 595px; }
+.planner-page[data-orient="landscape"][data-size="A5"]          { width: 595px; min-height: 420px; }
+.planner-page[data-orient="landscape"][data-size="Letter"]      { width: 792px; min-height: 612px; }
+.planner-page[data-orient="landscape"][data-size="Half-Letter"] { width: 612px; min-height: 396px; }
+.planner-page[data-orient="landscape"][data-size="B6"]          { width: 500px; min-height: 354px; }
+
+/* ─── SELECTION PILLS ───────────────────────────────────── */
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.pill {
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s;
+  background: #fff;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.pill:hover { border-color: var(--theme-primary); color: var(--text); }
+.pill.active {
+  background: var(--theme-light);
+  border-color: var(--theme-primary);
+  color: var(--text);
+  font-weight: 500;
+}
+.pill-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+.pill-action-btn {
+  font-size: 10px;
+  color: var(--theme-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-ui);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* date range inputs */
+.date-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.date-range-row label { font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 2px; }
+.date-range-row input[type="date"] {
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  background-image: none;
+}
+.date-range-row input[type="date"]:focus { border-color: var(--theme-primary); }
+
+/* week range */
+.week-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.week-range-row label { font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 2px; }
+.week-range-row input[type="number"] {
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: var(--font-ui);
+  color: var(--text);
+  outline: none;
+  background-image: none;
+  -moz-appearance: textfield;
+}
+.week-range-row input:focus { border-color: var(--theme-primary); }
+
+/* orientation toggle buttons */
+.orient-toggle {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.orient-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+.orient-btn:hover { border-color: var(--theme-primary); }
+.orient-btn.active {
+  border-color: var(--theme-primary);
+  background: var(--theme-light);
+  color: var(--text);
+  font-weight: 500;
+}
+.orient-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.orient-icon svg { display: block; }
+
+/* ─── STRETCH: give pages a FIXED height so flex children can fill it ── */
+/* Portrait */
+.planner-page.stretch-page[data-size="A4"]          { height: 842px;  min-height: unset; }
+.planner-page.stretch-page[data-size="A5"]          { height: 595px;  min-height: unset; }
+.planner-page.stretch-page[data-size="Letter"]      { height: 792px;  min-height: unset; }
+.planner-page.stretch-page[data-size="Half-Letter"] { height: 612px;  min-height: unset; }
+.planner-page.stretch-page[data-size="B6"]          { height: 500px;  min-height: unset; }
+/* Landscape */
+.planner-page.stretch-page[data-orient="landscape"][data-size="A4"]          { height: 595px;  }
+.planner-page.stretch-page[data-orient="landscape"][data-size="A5"]          { height: 420px;  }
+.planner-page.stretch-page[data-orient="landscape"][data-size="Letter"]      { height: 612px;  }
+.planner-page.stretch-page[data-orient="landscape"][data-size="Half-Letter"] { height: 396px;  }
+.planner-page.stretch-page[data-orient="landscape"][data-size="B6"]          { height: 354px;  }
+
+/* page-inner fills parent, is a flex column */
+.page-inner {
+  box-sizing: border-box;
+}
+.planner-page.stretch-page > .page-inner {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Monthly stretch ── */
+/* monthly-layout is display:grid — give it height via flex then expand grid rows */
+.stretch-page .monthly-layout {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: 1fr;   /* single row takes all available height */
+}
+/* month-cal-area is a grid item — make it flex so month-grid can fill it */
+.stretch-page .month-cal-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.stretch-page .month-grid {
+  flex: 1;
+  min-height: 0;
+  grid-auto-rows: 1fr;       /* all calendar rows equal height */
+}
+.stretch-page .month-grid-cell { min-height: 0; }
+.stretch-page .month-sidebar   { display: flex; flex-direction: column; gap: 6px; }
+.stretch-page .month-sidebar .sidebar-widget {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.stretch-page .month-sidebar .widget-lines {
+  flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+}
+.stretch-page .month-sidebar .widget-line { flex: 1; max-height: 1px; }
+
+/* ── Yearly stretch ── */
+.stretch-page .year-grid { flex: 1; min-height: 0; align-content: start; }
+.stretch-page .future-log { display: flex; flex-direction: column; }
+.stretch-page .future-log-grid { flex: 1; align-content: stretch; }
+.stretch-page .future-log-item { display: flex; flex-direction: column; }
+.stretch-page .log-lines { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+.stretch-page .log-line  { flex: 1; max-height: 1px; }
+
+/* ── Content fill: everything that should grow takes flex: 1 ── */
+
+/* notes-wrap always takes remaining space in page-inner */
+.notes-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.notes-wrap.notes-side   { flex-direction: row;    gap: 10px; }
+.notes-wrap.notes-bottom { flex-direction: column; }
+.notes-wrap.notes-both   { flex-direction: column; }
+
+/* content-area inside notes-wrap always fills remaining space */
+.notes-wrap > .content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The actual planner content divs fill their content-area */
+.notes-wrap > .content-area > .weekly-vertical,
+.notes-wrap > .content-area > .weekly-horizontal,
+.notes-wrap > .content-area > .daily-hobo,
+.notes-wrap > .content-area > .daily-ec,
+.notes-wrap > .content-area > .daily-traveler,
+.notes-wrap > .content-area > .monthly-layout { flex: 1; min-height: 0; }
+
+/* "both" inner layout */
+.notes-wrap.notes-both > .inner-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  min-height: 0;
+}
+.notes-wrap.notes-both > .inner-wrap > .content-area {
+  flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+.notes-wrap.notes-both > .inner-wrap > .content-area > .weekly-vertical,
+.notes-wrap.notes-both > .inner-wrap > .content-area > .weekly-horizontal,
+.notes-wrap.notes-both > .inner-wrap > .content-area > .daily-hobo,
+.notes-wrap.notes-both > .inner-wrap > .content-area > .daily-ec,
+.notes-wrap.notes-both > .inner-wrap > .content-area > .daily-traveler,
+.notes-wrap.notes-both > .inner-wrap > .content-area > .monthly-layout { flex: 1; min-height: 0; }
+
+/* ── When loc=none, content is direct child of page-inner ── */
+.page-inner > .weekly-vertical,
+.page-inner > .weekly-horizontal,
+.page-inner > .daily-hobo,
+.page-inner > .daily-ec,
+.page-inner > .daily-traveler,
+.page-inner > .monthly-layout,
+.page-inner > .notes-wrap { flex: 1; min-height: 0; }
+
+/* ── Stretch time-slots, rows, timeline rows to fill their column ── */
+.stretch-page .week-timetable          { flex: 1; display: flex; flex-direction: column; }
+.stretch-page .time-slot               { flex: 1; min-height: 0; }
+.stretch-page .week-day-col            { flex: 1; display: flex; flex-direction: column; }
+.stretch-page .hobo-time-row           { flex: 1; min-height: 0; }
+.stretch-page .hobo-timeline           { flex: 1; }
+.stretch-page .hobo-right              { flex: 1; display: flex; flex-direction: column; }
+.stretch-page .hobo-notes              { flex: 1; }
+.stretch-page .weekly-horizontal       { display: flex; flex-direction: column; }
+.stretch-page .week-row                { flex: 1; min-height: 0; }
+.stretch-page .traveler-sections       { flex: 1; }
+.stretch-page .daily-ec .ec-boxes      { flex: 1; }
+
+/* ── Notes panel ── */
+.notes-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.notes-wrap.notes-side   > .notes-panel { border-left: 1.5px solid var(--border); padding-left: 10px; }
+.notes-wrap.notes-bottom > .notes-panel { border-top: 1.5px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.notes-wrap.notes-both > .inner-wrap > .side-panel {
+  border-left: 1.5px solid var(--border);
+  padding-left: 10px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.notes-wrap.notes-both > .bottom-panel {
+  border-top: 1.5px solid var(--border);
+  padding-top: 8px;
+  margin-top: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.notes-panel-label {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--theme-primary);
+  opacity: 0.6;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+/* ─── INK SWATCHES ─────────────────────────────────────── */
+.ink-swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+.ink-swatch:hover { transform: scale(1.1); }
+.ink-swatch.active { border-color: var(--theme-primary); }
+.ink-swatch.active::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 700;
+}
+
+/* ─── TEXT SCALE APPLIED TO PLANNER PAGES ──────────────── */
+.planner-page {
+  --body-scale: var(--planner-scale, 1);
+  --head-scale: var(--planner-header-scale, 1);
+  color: var(--planner-ink, #374151);
+}
+/* Body text elements scale */
+.planner-page .time-label,
+.planner-page .mini-cal-day,
+.planner-page .mini-cal-header,
+.planner-page .habit-header-cell,
+.planner-page .traveler-line-rule,
+.planner-page .widget-line,
+.planner-page .log-line { font-size: calc(6.5px * var(--body-scale)); }
+
+.planner-page .week-day-num,
+.planner-page .traveler-day-big { font-size: calc(16px * var(--body-scale)); }
+
+.planner-page .month-grid-cell .day-num { font-size: calc(8px * var(--body-scale)); }
+
+/* Header elements scale */
+.planner-page .strip-title,
+.planner-page .page-section-title,
+.planner-page .week-day-name,
+.planner-page .mini-month-name,
+.planner-page .widget-title,
+.planner-page .future-log-month,
+.planner-page .traveler-section-label,
+.planner-page .notes-panel-label,
+.planner-page .ec-day-name { font-size: calc(9px * var(--head-scale)); }
+
+.planner-page .year-number { font-size: calc(48px * var(--head-scale)); }
+.planner-page .month-title { font-size: calc(22px * var(--head-scale)); }
+.planner-page .ec-day-num  { font-size: calc(28px * var(--head-scale)); }
+
+/* Ink color propagation */
+.planner-page .strip-title,
+.planner-page .year-number,
+.planner-page .week-day-num,
+.planner-page .traveler-day-big,
+.planner-page .month-grid-cell .day-num,
+.planner-page .traveler-meta,
+.planner-page .hobo-hour { color: var(--planner-ink); }
+
+/* ─── HABIT TRACKER EDITABLE ───────────────────────────── */
+.habit-name-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--planner-font);
+  font-size: 7px;
+  color: var(--planner-ink, #374151);
+  padding: 1px 2px;
+  cursor: text;
+}
+.habit-name-input::placeholder {
+  color: var(--border);
+  font-style: italic;
+}
+.habit-name-cell {
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── SLIDER ────────────────────────────────────────────── */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--theme-primary);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.slider-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-primary);
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Notes location picker */
+.notes-loc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: 6px;
+}
+.notes-loc-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 3px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  font-size: 9px;
+  color: var(--text-muted);
+  transition: all 0.12s;
+  font-family: var(--font-ui);
+}
+.notes-loc-btn:hover { border-color: var(--theme-primary); }
+.notes-loc-btn.active {
+  border-color: var(--theme-primary);
+  background: var(--theme-light);
+  color: var(--text);
+  font-weight: 600;
+}
+.notes-loc-icon {
+  width: 24px;
+  height: 18px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  position: relative;
+  opacity: 0.5;
+}
+.notes-loc-btn.active .notes-loc-icon { opacity: 1; }
+.notes-loc-icon .loc-fill {
+  position: absolute;
+  background: var(--theme-primary);
+  opacity: 0.5;
+  border-radius: 1px;
+}
+
+/* ─── PRINT STYLES ──────────────────────────────────────── */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  body { display: block; height: auto; overflow: visible; background: none; }
+
+  #sidebar, .preview-toolbar, .print-btn { display: none !important; }
+
+  #preview-area {
+    display: block; overflow: visible; background: none; padding: 0; margin: 0;
+  }
+
+  /* Every page fills exactly one printed sheet — 100vh = one @page height */
+  .planner-page {
+    page-break-after: always;
+    break-after: page;
+    box-shadow: none;
+    border-radius: 0;
+    width: 100% !important;
+    height: 100vh !important;   /* fills one physical page; @page margin:0 so 100vh = paper height */
+    min-height: unset !important;
+    overflow: hidden !important;
+  }
+  .planner-page:last-child { page-break-after: avoid; break-after: avoid; }
+
+  /* page-inner fills the page in print too */
+  .planner-page > .page-inner {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Dynamic @page size is injected by JS into #print-page-style */
+
+/* Scrollbar */
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+#preview-area::-webkit-scrollbar { width: 6px; }
+#preview-area::-webkit-scrollbar-track { background: transparent; }
+#preview-area::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+</style>
+</head>
+<body data-size="A4">
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  SIDEBAR                                               -->
+<!-- ══════════════════════════════════════════════════════ -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <h1>🌸 Bloom Planner</h1>
+    <p>Design your perfect printable planner</p>
+  </div>
+
+  <!-- Paper & Layout -->
+  <div class="section">
+    <div class="section-title">Paper & Layout</div>
+
+    <div class="control-row">
+      <label class="control-label">Paper Size</label>
+      <select id="paperSize">
+        <option value="A4">A4 (210 × 297 mm)</option>
+        <option value="A5">A5 (148 × 210 mm)</option>
+        <option value="Letter">Letter (8.5 × 11 in)</option>
+        <option value="Half-Letter">Half Letter (5.5 × 8.5 in)</option>
+        <option value="B6">B6 (128 × 182 mm)</option>
+      </select>
+    </div>
+
+    <div class="control-row">
+      <label class="control-label">Background Grid</label>
+      <select id="gridType">
+        <option value="blank">Blank</option>
+        <option value="lined">Lined</option>
+        <option value="dot" selected>Dot Grid (Bullet Journal)</option>
+        <option value="square">Square Grid (Hobonichi)</option>
+      </select>
+    </div>
+
+    <div class="control-row" style="margin-top:4px;">
+      <label class="control-label">Page Orientation</label>
+      <div class="orient-toggle">
+        <button class="orient-btn active" id="orient-portrait" onclick="setOrientation('portrait')">
+          <div class="orient-icon">
+            <svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="16" height="22" rx="2" stroke="currentColor" stroke-width="1.5" fill="var(--theme-light)"/>
+              <rect x="4" y="6" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+              <rect x="4" y="9.5" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+              <rect x="4" y="13" width="7" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+            </svg>
+          </div>
+          Portrait
+        </button>
+        <button class="orient-btn" id="orient-landscape" onclick="setOrientation('landscape')">
+          <div class="orient-icon">
+            <svg width="24" height="18" viewBox="0 0 24 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="22" height="16" rx="2" stroke="currentColor" stroke-width="1.5" fill="var(--theme-light)"/>
+              <rect x="4" y="5" width="16" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+              <rect x="4" y="8.5" width="16" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+              <rect x="4" y="12" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.4"/>
+            </svg>
+          </div>
+          Landscape
+        </button>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">Binding / Hole-Punch Margin</span>
+      <label class="toggle">
+        <input type="checkbox" id="bindingMargin">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Planner Style -->
+  <div class="section">
+    <div class="section-title">Planner Style</div>
+    <div class="control-row">
+      <label class="control-label">Layout Vibe</label>
+      <select id="plannerStyle">
+        <option value="hobo">Hobo (Hobonichi-inspired)</option>
+        <option value="ec">Vertical Box (Erin Condren-inspired)</option>
+        <option value="traveler">Traveler (Minimalist Journal)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Pages / Modules -->
+  <div class="section">
+    <div class="section-title">Pages to Include</div>
+    <div class="module-grid">
+      <label class="module-chip">
+        <input type="checkbox" id="mod-yearly" checked>
+        <span class="chip-dot"></span> Yearly
+      </label>
+      <label class="module-chip">
+        <input type="checkbox" id="mod-monthly" checked>
+        <span class="chip-dot"></span> Monthly
+      </label>
+      <label class="module-chip">
+        <input type="checkbox" id="mod-weekly" checked>
+        <span class="chip-dot"></span> Weekly
+      </label>
+      <label class="module-chip">
+        <input type="checkbox" id="mod-daily" checked>
+        <span class="chip-dot"></span> Daily
+      </label>
+    </div>
+  </div>
+
+  <!-- Month Picker -->
+  <div class="section" id="month-picker-section">
+    <div class="section-title">Which Months?</div>
+    <div class="pill-actions">
+      <button class="pill-action-btn" onclick="selectAllMonths()">All</button>
+      <button class="pill-action-btn" onclick="clearAllMonths()">None</button>
+      <button class="pill-action-btn" onclick="selectMonthsQ(0)">Q1</button>
+      <button class="pill-action-btn" onclick="selectMonthsQ(1)">Q2</button>
+      <button class="pill-action-btn" onclick="selectMonthsQ(2)">Q3</button>
+      <button class="pill-action-btn" onclick="selectMonthsQ(3)">Q4</button>
+    </div>
+    <div class="pill-row" id="month-pills">
+      <!-- built by JS -->
+    </div>
+  </div>
+
+  <!-- Stretch & Notes Space -->
+  <div class="section">
+    <div class="section-title">Content Stretch & Notes Space</div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">Stretch content to fill page</span>
+      <label class="toggle">
+        <input type="checkbox" id="stretchContent" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="control-row" style="margin-top:8px;">
+      <label class="control-label">Blank notes area</label>
+      <div class="notes-loc-grid">
+        <button class="notes-loc-btn active" id="nloc-none"   onclick="setNotesLoc('none')">
+          <div class="notes-loc-icon"></div>
+          None
+        </button>
+        <button class="notes-loc-btn" id="nloc-side"   onclick="setNotesLoc('side')">
+          <div class="notes-loc-icon">
+            <div class="loc-fill" style="top:1px;right:1px;bottom:1px;width:38%"></div>
+          </div>
+          Side
+        </button>
+        <button class="notes-loc-btn" id="nloc-bottom" onclick="setNotesLoc('bottom')">
+          <div class="notes-loc-icon">
+            <div class="loc-fill" style="left:1px;right:1px;bottom:1px;height:38%"></div>
+          </div>
+          Bottom
+        </button>
+        <button class="notes-loc-btn" id="nloc-both"   onclick="setNotesLoc('both')">
+          <div class="notes-loc-icon">
+            <div class="loc-fill" style="top:1px;right:1px;bottom:36%;width:35%"></div>
+            <div class="loc-fill" style="left:1px;right:1px;bottom:1px;height:34%"></div>
+          </div>
+          Both
+        </button>
+      </div>
+    </div>
+
+    <div id="notes-size-controls" style="display:none">
+      <div id="notes-side-size-row" style="display:none">
+        <div class="control-label" style="margin-top:10px;margin-bottom:2px;">Side width</div>
+        <div class="slider-row">
+          <input type="range" id="notesSideSize" min="15" max="50" value="28" oninput="updateNotesSize()">
+          <span class="slider-val" id="notesSideSizeVal">28%</span>
+        </div>
+      </div>
+      <div id="notes-bottom-size-row" style="display:none">
+        <div class="control-label" style="margin-top:8px;margin-bottom:2px;">Bottom height</div>
+        <div class="slider-row">
+          <input type="range" id="notesBottomSize" min="15" max="50" value="28" oninput="updateNotesSize()">
+          <span class="slider-val" id="notesBottomSizeVal">28%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Style + Week Picker -->
+  <div class="section">
+    <div class="section-title">Weekly Layout</div>
+    <div class="control-row">
+      <label class="control-label">Orientation</label>
+      <select id="weeklyStyle">
+        <option value="vertical">Vertical (days as columns)</option>
+        <option value="horizontal">Horizontal (days as rows)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section" id="week-picker-section">
+    <div class="section-title">Which Weeks?</div>
+    <div class="pill-actions">
+      <button class="pill-action-btn" onclick="selectAllWeeks()">All 52</button>
+      <button class="pill-action-btn" onclick="clearAllWeeks()">None</button>
+    </div>
+    <div class="week-range-row">
+      <div>
+        <label>From week</label>
+        <input type="number" id="weekFrom" min="1" max="52" value="1" oninput="setWeekRange()">
+      </div>
+      <div>
+        <label>To week</label>
+        <input type="number" id="weekTo" min="1" max="52" value="4" oninput="setWeekRange()">
+      </div>
+    </div>
+    <div class="pill-row" id="week-pills" style="max-height:90px;overflow-y:auto;margin-top:6px;">
+      <!-- built by JS -->
+    </div>
+  </div>
+
+  <!-- Day Picker -->
+  <div class="section" id="day-picker-section">
+    <div class="section-title">Which Days?</div>
+    <div class="date-range-row">
+      <div>
+        <label>From</label>
+        <input type="date" id="dayFrom">
+      </div>
+      <div>
+        <label>To</label>
+        <input type="date" id="dayTo">
+      </div>
+    </div>
+    <div class="pill-actions" style="margin-top:6px;">
+      <button class="pill-action-btn" onclick="setDayPreset('today')">Today</button>
+      <button class="pill-action-btn" onclick="setDayPreset('thisweek')">This week</button>
+      <button class="pill-action-btn" onclick="setDayPreset('thismonth')">This month</button>
+      <button class="pill-action-btn" onclick="setDayPreset('nextmonth')">Next month</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:6px;" id="day-count-label"></div>
+  </div>
+
+  <!-- Add-on Trackers -->
+  <div class="section">
+    <div class="section-title">Add-on Trackers</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Habit Tracker</span>
+      <label class="toggle">
+        <input type="checkbox" id="mod-habit">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Water Intake</span>
+      <label class="toggle">
+        <input type="checkbox" id="mod-water">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Mood Grid</span>
+      <label class="toggle">
+        <input type="checkbox" id="mod-mood">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Meal Planner</span>
+      <label class="toggle">
+        <input type="checkbox" id="mod-meal">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Typography -->
+  <div class="section">
+    <div class="section-title">Typography</div>
+    <div class="control-row">
+      <label class="control-label">Font Style</label>
+      <select id="fontStyle">
+        <option value="inter">Clean Minimalist (Inter)</option>
+        <option value="caveat">Cute Handwritten (Caveat)</option>
+        <option value="playfair">Elegant Serif (Playfair Display)</option>
+      </select>
+    </div>
+
+    <div class="control-row" style="margin-top:8px;">
+      <label class="control-label">Text / Ink Color</label>
+      <div class="theme-grid" style="margin-top:4px;">
+        <div class="ink-swatch active" data-ink="#374151" style="background:#374151" title="Charcoal"></div>
+        <div class="ink-swatch" data-ink="#111827" style="background:#111827" title="Ink Black"></div>
+        <div class="ink-swatch" data-ink="#6b7280" style="background:#6b7280" title="Soft Gray"></div>
+        <div class="ink-swatch" data-ink="#9ca3af" style="background:#9ca3af" title="Light Gray"></div>
+        <div class="ink-swatch" data-ink="#1e3a5f" style="background:#1e3a5f" title="Navy"></div>
+        <div class="ink-swatch" data-ink="#3d2b1f" style="background:#3d2b1f" title="Sepia Brown"></div>
+        <div class="ink-swatch" data-ink="#1a3c2a" style="background:#1a3c2a" title="Forest Green"></div>
+        <div class="ink-swatch" data-ink="#4a1942" style="background:#4a1942" title="Plum"></div>
+        <div class="ink-swatch" data-ink="#7c2d12" style="background:#7c2d12" title="Rust"></div>
+        <div class="ink-swatch" data-ink="#0c4a6e" style="background:#0c4a6e" title="Ocean Blue"></div>
+      </div>
+    </div>
+
+    <div class="control-row" style="margin-top:8px;">
+      <label class="control-label">Text Scale</label>
+      <div class="slider-row">
+        <input type="range" id="textScale" min="70" max="140" value="100" oninput="updateTextScale()">
+        <span class="slider-val" id="textScaleVal">100%</span>
+      </div>
+    </div>
+
+    <div class="control-row" style="margin-top:4px;">
+      <label class="control-label">Header Size <span style="color:var(--text-muted);font-weight:400">(titles, day names)</span></label>
+      <div class="slider-row">
+        <input type="range" id="headerScale" min="60" max="160" value="100" oninput="updateTextScale()">
+        <span class="slider-val" id="headerScaleVal">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color Themes -->
+  <div class="section">
+    <div class="section-title">Color Theme</div>
+    <div class="theme-grid">
+      <div class="theme-swatch active" data-theme="sakura"   style="background:linear-gradient(135deg,#f9a8d4,#fce7f3)" title="Sakura Pink"></div>
+      <div class="theme-swatch"        data-theme="lavender" style="background:linear-gradient(135deg,#c4b5fd,#ede9fe)" title="Lavender"></div>
+      <div class="theme-swatch"        data-theme="matcha"   style="background:linear-gradient(135deg,#86efac,#dcfce7)" title="Matcha Green"></div>
+      <div class="theme-swatch"        data-theme="peach"    style="background:linear-gradient(135deg,#fdba74,#ffedd5)" title="Peach"></div>
+      <div class="theme-swatch"        data-theme="sky"      style="background:linear-gradient(135deg,#7dd3fc,#e0f2fe)" title="Sky Blue"></div>
+      <div class="theme-swatch"        data-theme="mono"     style="background:linear-gradient(135deg,#6b7280,#f3f4f6)" title="Monochrome"></div>
+      <div class="theme-swatch"        data-theme="rose"     style="background:linear-gradient(135deg,#fb7185,#ffe4e6)" title="Rose Red"></div>
+      <div class="theme-swatch"        data-theme="slate"    style="background:linear-gradient(135deg,#818cf8,#e0e7ff)" title="Indigo Slate"></div>
+      <div class="theme-swatch"        data-theme="butter"   style="background:linear-gradient(135deg,#facc15,#fef9c3)" title="Butter Yellow"></div>
+      <div class="theme-swatch"        data-theme="sand"     style="background:linear-gradient(135deg,#d4a574,#fdf6ec)" title="Sand Beige"></div>
+    </div>
+  </div>
+
+  <!-- Year -->
+  <div class="section">
+    <div class="section-title">Planner Year</div>
+    <div class="control-row">
+      <select id="plannerYear">
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨 Print / Export PDF</button>
+</aside>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  PREVIEW AREA                                          -->
+<!-- ══════════════════════════════════════════════════════ -->
+<main id="preview-area">
+  <div class="preview-toolbar">
+    <span class="preview-badge" id="previewBadge">A4 · Dot Grid · Sakura Pink</span>
+    <span>Live Preview — click Print to export PDF</span>
+  </div>
+  <div id="pages-container"></div>
+</main>
+
+<style id="print-page-style"></style>
+<script>
+/* ══════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════════ */
+const today = new Date();
+const todayStr = today.toISOString().slice(0,10);
+const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 6);
+const weekEndStr = weekEnd.toISOString().slice(0,10);
+
+const state = {
+  paperSize:    'A4',
+  orientation:  'portrait',
+  gridType:     'dot',
+  binding:      false,
+  style:        'hobo',
+  weeklyStyle:  'vertical',
+  font:         'inter',
+  theme:        'sakura',
+  year:         2026,
+  selectedMonths: new Set([0,1,2,3,4,5,6,7,8,9,10,11]),
+  selectedWeeks:  new Set([1,2,3,4]),
+  dayFrom:        todayStr,
+  dayTo:          weekEndStr,
+  stretch:        true,
+  notesLoc:       'none',
+  notesSideSize:  28,
+  notesBottomSize:28,
+  ink:            '#374151',
+  textScale:      100,
+  headerScale:    100,
+  modules: {
+    yearly:  true,
+    monthly: true,
+    weekly:  true,
+    daily:   true,
+    habit:   false,
+    water:   false,
+    mood:    false,
+    meal:    false,
+  }
+};
+
+const THEMES = {
+  sakura:   { primary: '#f9a8d4', light: '#fce7f3', grid: 'rgba(249,168,212,0.18)', line: 'rgba(0,0,0,0.09)' },
+  lavender: { primary: '#c4b5fd', light: '#ede9fe', grid: 'rgba(196,181,253,0.18)', line: 'rgba(0,0,0,0.09)' },
+  matcha:   { primary: '#4ade80', light: '#dcfce7', grid: 'rgba(74,222,128,0.15)',  line: 'rgba(0,0,0,0.09)' },
+  peach:    { primary: '#fb923c', light: '#ffedd5', grid: 'rgba(251,146,60,0.15)',  line: 'rgba(0,0,0,0.09)' },
+  sky:      { primary: '#38bdf8', light: '#e0f2fe', grid: 'rgba(56,189,248,0.15)',  line: 'rgba(0,0,0,0.09)' },
+  mono:     { primary: '#6b7280', light: '#f3f4f6', grid: 'rgba(107,114,128,0.12)', line: 'rgba(0,0,0,0.09)' },
+  rose:     { primary: '#f43f5e', light: '#ffe4e6', grid: 'rgba(244,63,94,0.15)',   line: 'rgba(0,0,0,0.09)' },
+  slate:    { primary: '#6366f1', light: '#e0e7ff', grid: 'rgba(99,102,241,0.15)',  line: 'rgba(0,0,0,0.09)' },
+  butter:   { primary: '#eab308', light: '#fef9c3', grid: 'rgba(234,179,8,0.15)',   line: 'rgba(0,0,0,0.09)' },
+  sand:     { primary: '#b45309', light: '#fdf6ec', grid: 'rgba(180,83,9,0.12)',    line: 'rgba(0,0,0,0.09)' },
+};
+
+const FONTS = {
+  inter:    "'Inter', sans-serif",
+  caveat:   "'Caveat', cursive",
+  playfair: "'Playfair Display', serif",
+};
+
+const MONTHS     = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_ABB = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS_SHORT = ['S','M','T','W','T','F','S'];
+const DAYS_FULL  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAYS_ABB   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+/* ══════════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════════════ */
+function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+function getFirstDay(y, m)    { return new Date(y, m, 1).getDay(); }
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls)  e.className = cls;
+  if (html) e.innerHTML = html;
+  return e;
+}
+
+function makeLines(n, cls = 'widget-line') {
+  return Array.from({length: n}, () => `<div class="${cls}"></div>`).join('');
+}
+
+function bgClass() {
+  const map = { blank: 'bg-blank', lined: 'bg-lined', dot: 'bg-dot', square: 'bg-square' };
+  return map[state.gridType] || 'bg-blank';
+}
+
+function pageEl(extraClass = '', applyStretch = false) {
+  const isStretch = applyStretch && state.stretch;
+  let pageCls = `planner-page ${bgClass()}`;
+  if (extraClass) pageCls += ' ' + extraClass;
+  if (isStretch)  pageCls += ' stretch-page';
+  const p = el('div', pageCls);
+  p.setAttribute('data-size', state.paperSize);
+  p.setAttribute('data-orient', state.orientation);
+  let innerCls = 'page-inner';
+  if (state.binding) innerCls += ' binding-left';
+  const inner = el('div', innerCls);
+  p.appendChild(inner);
+  const pn = el('div', 'page-number', '○');
+  p.appendChild(pn);
+  return { page: p, inner };
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE BUILDERS
+════════════════════════════════════════════════════════════ */
+
+/* ── Yearly ── */
+function buildYearlyPage() {
+  const { page, inner } = pageEl('yearly-page', true);
+  const y = state.year;
+
+  const title = el('div','page-section-title'); title.textContent = 'Year at a Glance';
+  const yearNum = el('div','year-number'); yearNum.textContent = y;
+  const yg = el('div','year-grid');
+
+  MONTHS.forEach((name, mi) => {
+    const mc = el('div','mini-month');
+    mc.innerHTML = `<div class="mini-month-name">${name}</div>`;
+    const grid = el('div','mini-cal');
+    DAYS_SHORT.forEach(d => { const h = el('div','mini-cal-header'); h.textContent = d; grid.appendChild(h); });
+    const first = getFirstDay(y, mi);
+    for (let i = 0; i < first; i++) { const e = el('div','mini-cal-day empty'); e.textContent = '.'; grid.appendChild(e); }
+    const days = getDaysInMonth(y, mi);
+    for (let d = 1; d <= days; d++) {
+      const isToday = (today.getFullYear() === y && today.getMonth() === mi && today.getDate() === d);
+      const e = el('div', `mini-cal-day${isToday?' today':''}`);
+      e.textContent = d; grid.appendChild(e);
+    }
+    mc.appendChild(grid);
+    yg.appendChild(mc);
+  });
+
+  const futureLog = el('div','future-log');
+  const ftitle = el('div','page-section-title'); ftitle.style.marginTop = '12px'; ftitle.textContent = 'Future Log';
+  const fgrid = el('div','future-log-grid');
+  MONTHS.forEach(m => {
+    const item = el('div','future-log-item');
+    item.innerHTML = `<div class="future-log-month">${m}</div><div class="log-lines">${makeLines(4)}</div>`;
+    fgrid.appendChild(item);
+  });
+  futureLog.appendChild(ftitle);
+  futureLog.appendChild(fgrid);
+
+  const content = el('div'); content.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;';
+  content.appendChild(title);
+  content.appendChild(yearNum);
+  content.appendChild(yg);
+  content.appendChild(futureLog);
+
+  inner.appendChild(wrapWithNotes(content));
+  return page;
+}
+
+/* ── Monthly ── */
+function buildMonthlyPage(monthIndex) {
+  const { page, inner } = pageEl('', true);
+  const y = state.year;
+  const mName = MONTHS[monthIndex];
+
+  const strip = el('div','page-top-strip');
+  strip.innerHTML = `<div class="strip-title">${mName} ${y}</div><div class="strip-date">Monthly Overview</div>`;
+  inner.appendChild(strip);
+
+  const layout = el('div','monthly-layout');
+
+  // calendar area
+  const calArea = el('div','month-cal-area');
+  const mg = el('div','month-grid');
+  DAYS_SHORT.forEach(d => { const h = el('div','month-grid-header'); h.textContent = d; mg.appendChild(h); });
+  const first = getFirstDay(y, monthIndex);
+  for (let i = 0; i < first; i++) { mg.appendChild(el('div','month-grid-cell')); }
+  const days = getDaysInMonth(y, monthIndex);
+  for (let d = 1; d <= days; d++) {
+    const isToday = (today.getFullYear() === y && today.getMonth() === monthIndex && today.getDate() === d);
+    const c = el('div', `month-grid-cell${isToday?' today':''}`);
+    c.innerHTML = `<div class="day-num">${d}</div>`;
+    mg.appendChild(c);
+  }
+  calArea.appendChild(mg);
+  layout.appendChild(calArea);
+
+  // sidebar
+  const sidebar = el('div','month-sidebar');
+  sidebar.innerHTML = `
+    <div class="sidebar-widget"><div class="widget-title">Top Priorities</div><div class="widget-lines">${makeLines(8)}</div></div>
+    <div class="sidebar-widget"><div class="widget-title">Notes</div><div class="widget-lines">${makeLines(10)}</div></div>
+    <div class="sidebar-widget"><div class="widget-title">Goals</div><div class="widget-lines">${makeLines(6)}</div></div>
+  `;
+  layout.appendChild(sidebar);
+
+  inner.appendChild(wrapWithNotes(layout));
+  return page;
+}
+
+/* ── Weekly Vertical ── */
+function buildWeeklyVerticalPage(weekNum) {
+  const { page, inner } = pageEl('', true);
+  const y = state.year;
+  const monday = new Date(y, 0, 1 + (weekNum - 1) * 7);
+  while (monday.getDay() !== 1) monday.setDate(monday.getDate() + 1);
+
+  const strip = el('div','page-top-strip');
+  strip.innerHTML = `
+    <div class="strip-title">Week ${weekNum} · ${y}</div>
+    <div class="strip-date">${monday.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${new Date(monday.getTime()+6*86400000).toLocaleDateString('en',{month:'short',day:'numeric'})}</div>
+  `;
+  inner.appendChild(strip);
+
+  const wv = el('div','weekly-vertical');
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getTime() + i * 86400000);
+    const col = el('div','week-day-col');
+    col.innerHTML = `
+      <div class="week-day-header">
+        <div class="week-day-name">${DAYS_ABB[d.getDay()]}</div>
+        <div class="week-day-num">${d.getDate()}</div>
+      </div>
+      <div class="week-timetable">
+        ${Array.from({length:13},(_,h)=>`
+          <div class="time-slot">
+            <span class="time-label">${(h+8).toString().padStart(2,'0')}</span>
+            <div class="time-space"></div>
+          </div>`).join('')}
+      </div>
+    `;
+    wv.appendChild(col);
+  }
+  inner.appendChild(wrapWithNotes(wv));
+  return page;
+}
+
+/* ── Weekly Horizontal ── */
+function buildWeeklyHorizontalPage(weekNum) {
+  const { page, inner } = pageEl('', true);
+  const y = state.year;
+  const monday = new Date(y, 0, 1 + (weekNum - 1) * 7);
+  while (monday.getDay() !== 1) monday.setDate(monday.getDate() + 1);
+
+  const strip = el('div','page-top-strip');
+  strip.innerHTML = `
+    <div class="strip-title">Week ${weekNum} · ${y}</div>
+    <div class="strip-date">${monday.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${new Date(monday.getTime()+6*86400000).toLocaleDateString('en',{month:'short',day:'numeric'})}</div>
+  `;
+  inner.appendChild(strip);
+
+  const wh = el('div','weekly-horizontal');
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getTime() + i * 86400000);
+    const row = el('div','week-row');
+    row.innerHTML = `
+      <div class="week-row-header">
+        <div class="week-day-name" style="font-size:8px;font-weight:700;color:var(--theme-primary);text-transform:uppercase">${DAYS_ABB[d.getDay()]}</div>
+        <div class="week-day-num" style="font-size:14px;font-weight:300;color:var(--text)">${d.getDate()}</div>
+      </div>
+      <div class="week-row-body"></div>
+    `;
+    wh.appendChild(row);
+  }
+  inner.appendChild(wrapWithNotes(wh));
+  return page;
+}
+
+/* ── Daily: Hobo Style ── */
+function buildDailyHobo(date) {
+  const { page, inner } = pageEl('', true);
+  const dayName = DAYS_FULL[date.getDay()];
+  const mName   = MONTHS[date.getMonth()];
+
+  const strip = el('div','page-top-strip');
+  strip.innerHTML = `<div class="strip-title">${dayName}</div><div class="strip-date">${mName} ${date.getDate()}, ${date.getFullYear()}</div>`;
+  inner.appendChild(strip);
+
+  const hobo = el('div','daily-hobo');
+  const timeline = el('div','hobo-timeline');
+  for (let h = 5; h <= 23; h++) {
+    const row = el('div','hobo-time-row');
+    row.innerHTML = `<div class="hobo-hour">${h.toString().padStart(2,'0')}</div><div class="hobo-block"></div>`;
+    timeline.appendChild(row);
+  }
+
+  const right = el('div','hobo-right');
+  const miniCorner = el('div','hobo-mini-month-corner');
+  miniCorner.innerHTML = `<div class="mini-month-name">${mName}</div>`;
+  const mc = el('div','mini-cal');
+  DAYS_SHORT.forEach(d => { const h = el('div','mini-cal-header'); h.textContent = d; mc.appendChild(h); });
+  const first = getFirstDay(date.getFullYear(), date.getMonth());
+  for (let i = 0; i < first; i++) { const e = el('div','mini-cal-day empty'); e.textContent = '.'; mc.appendChild(e); }
+  const days = getDaysInMonth(date.getFullYear(), date.getMonth());
+  for (let d = 1; d <= days; d++) {
+    const e = el('div',`mini-cal-day${d===date.getDate()?' today':''}`);
+    e.textContent = d; mc.appendChild(e);
+  }
+  miniCorner.appendChild(mc);
+  right.appendChild(miniCorner);
+
+  const notesBox = el('div','hobo-notes');
+  notesBox.innerHTML = `<div class="widget-title">Notes</div>`;
+  right.appendChild(notesBox);
+
+  hobo.appendChild(timeline);
+  hobo.appendChild(right);
+  inner.appendChild(wrapWithNotes(hobo));
+  return page;
+}
+
+/* ── Daily: EC Style ── */
+function buildDailyEC(date) {
+  const { page, inner } = pageEl('', true);
+  const dayName = DAYS_FULL[date.getDay()];
+  const mName   = MONTHS[date.getMonth()];
+
+  const wrap = el('div','daily-ec');
+  wrap.innerHTML = `
+    <div class="ec-day-header">
+      <div class="ec-day-name">${dayName} · ${mName} ${date.getDate()}</div>
+      <div class="ec-day-num">${date.getDate()}</div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div class="widget-title">Today's Focus</div>
+      <div class="widget-lines">${makeLines(2)}</div>
+    </div>
+    <div class="ec-boxes">
+      <div class="ec-box"><div class="ec-box-header">☀️ Morning</div><div class="ec-box-body"></div></div>
+      <div class="ec-box"><div class="ec-box-header">🌤 Afternoon</div><div class="ec-box-body"></div></div>
+      <div class="ec-box"><div class="ec-box-header">🌙 Evening</div><div class="ec-box-body"></div></div>
+    </div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="sidebar-widget"><div class="widget-title">To-Do</div><div class="widget-lines">${makeLines(6)}</div></div>
+      <div class="sidebar-widget"><div class="widget-title">Notes</div><div class="widget-lines">${makeLines(6)}</div></div>
+    </div>
+  `;
+  inner.appendChild(wrapWithNotes(wrap));
+  return page;
+}
+
+/* ── Daily: Traveler Style ── */
+function buildDailyTraveler(date) {
+  const { page, inner } = pageEl('', true);
+  const dayName = DAYS_FULL[date.getDay()];
+  const mName   = MONTHS[date.getMonth()];
+
+  const wrap = el('div','daily-traveler');
+  wrap.innerHTML = `
+    <div class="traveler-date-line">
+      <div class="traveler-day-big">${date.getDate()}</div>
+      <div class="traveler-meta">${dayName} · ${mName} ${date.getFullYear()}</div>
+    </div>
+    <div class="traveler-sections">
+      <div>
+        <div class="traveler-section-label">Schedule</div>
+        <div class="traveler-lines">${Array.from({length:8},(_,i)=>`
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <span style="font-size:6.5px;color:var(--text-muted);width:22px;flex-shrink:0">${(i+8).toString().padStart(2,'0')}:00</span>
+            <div class="traveler-line-rule" style="flex:1"></div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="traveler-section-label">Today's Log</div>
+        <div class="traveler-lines">${makeLines(10,'traveler-line-rule')}</div>
+      </div>
+      <div>
+        <div class="traveler-section-label">Notes & Sketches</div>
+        <div class="traveler-lines">${makeLines(6,'traveler-line-rule')}</div>
+      </div>
+    </div>
+  `;
+  inner.appendChild(wrapWithNotes(wrap));
+  return page;
+}
+
+/* ── Habit Tracker ── */
+function buildHabitPage() {
+  const { page, inner } = pageEl();
+  const y = state.year;
+  const today = new Date();
+  const mi = today.getMonth();
+  const mName = MONTHS[mi];
+  const days = getDaysInMonth(y, mi);
+
+  const HABIT_ROWS = 12;
+
+  const strip = el('div','page-top-strip');
+  strip.innerHTML = `<div class="strip-title">Habit Tracker</div><div class="strip-date">${mName} ${y}</div>`;
+  inner.appendChild(strip);
+
+  const grid = el('div','habit-grid');
+
+  // header row: blank label cell + day numbers 1–31
+  grid.appendChild(el('div','habit-header-cell'));
+  for (let d = 1; d <= 31; d++) {
+    const h = el('div','habit-header-cell');
+    h.textContent = d;
+    if (d > days) h.style.opacity = '0.25';
+    grid.appendChild(h);
+  }
+
+  // habit rows — all empty, name cell is an editable input
+  for (let r = 0; r < HABIT_ROWS; r++) {
+    const nc = el('div','habit-name-cell');
+    const input = el('input');
+    input.className = 'habit-name-input';
+    input.type = 'text';
+    input.placeholder = 'Habit ' + (r + 1) + '…';
+    input.maxLength = 22;
+    nc.appendChild(input);
+    grid.appendChild(nc);
+
+    for (let d = 1; d <= 31; d++) {
+      const c = el('div','habit-check-cell');
+      if (d > days) c.style.opacity = '0.2';
+      grid.appendChild(c);
+    }
+  }
+
+  inner.appendChild(grid);
+  return page;
+}
+
+/* ── Water + Mood ── */
+function buildTrackerPage() {
+  const { page, inner } = pageEl();
+  const y = state.year;
+  const today = new Date();
+  const mi = today.getMonth();
+  const mName = MONTHS[mi];
+
+  inner.innerHTML = `
+    <div class="page-top-strip">
+      <div class="strip-title">Trackers</div>
+      <div class="strip-date">${mName} ${y}</div>
+    </div>
+  `;
+
+  if (state.modules.water) {
+    const wSection = el('div');
+    wSection.innerHTML = `
+      <div class="widget-title" style="margin-bottom:8px;">💧 Water Intake (Daily Goal: 8 glasses)</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:16px;">
+        ${Array.from({length:31},(_,i)=>`
+          <div style="border:1px solid var(--border);border-radius:6px;padding:4px;text-align:center;">
+            <div style="font-size:6px;color:var(--text-muted);margin-bottom:3px;">${i+1}</div>
+            <div style="display:flex;gap:1px;flex-wrap:wrap;justify-content:center;">
+              ${Array.from({length:8},()=>`<div style="width:6px;height:10px;border:1px solid var(--border);border-radius:1px;"></div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+    `;
+    inner.appendChild(wSection);
+  }
+
+  if (state.modules.mood) {
+    const mSection = el('div');
+    const MOODS = ['😊','😐','😞','😤','😴','🤒'];
+    mSection.innerHTML = `
+      <div class="widget-title" style="margin-bottom:6px;">🎭 Mood Grid</div>
+      <div style="display:flex;gap:12px;margin-bottom:6px;font-size:7px;color:var(--text-muted);">
+        ${MOODS.map(m=>`<span>${m} ${['Happy','Meh','Sad','Angry','Tired','Sick'][MOODS.indexOf(m)]}</span>`).join('')}
+      </div>
+      <div class="mood-grid">
+        ${Array.from({length:31},(_,i)=>`
+          <div class="mood-cell">${i+1}</div>`).join('')}
+      </div>
+    `;
+    inner.appendChild(mSection);
+  }
+
+  return page;
+}
+
+/* ── Meal Planner ── */
+function buildMealPage() {
+  const { page, inner } = pageEl();
+  const y = state.year;
+  const today = new Date();
+  const mi = today.getMonth();
+  const monday = new Date(today);
+  while (monday.getDay() !== 1) monday.setDate(monday.getDate() - 1);
+
+  inner.innerHTML = `
+    <div class="page-top-strip">
+      <div class="strip-title">Meal Planner</div>
+      <div class="strip-date">${monday.toLocaleDateString('en',{month:'short',day:'numeric'})} – ${new Date(monday.getTime()+6*86400000).toLocaleDateString('en',{month:'short',day:'numeric'})}</div>
+    </div>
+  `;
+
+  const meals = ['Breakfast','Lunch','Dinner','Snack'];
+  const grid = el('div','meal-grid');
+
+  // header
+  const bk = el('div','meal-row-header'); grid.appendChild(bk);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getTime() + i * 86400000);
+    const h = el('div','meal-row-header');
+    h.style.cssText = 'font-size:7px;font-weight:600;color:var(--theme-primary);justify-content:center;';
+    h.textContent = DAYS_ABB[d.getDay()];
+    grid.appendChild(h);
+  }
+
+  meals.forEach(meal => {
+    const label = el('div','meal-row-header'); label.textContent = meal; grid.appendChild(label);
+    for (let i = 0; i < 7; i++) {
+      const c = el('div','meal-cell'); grid.appendChild(c);
+    }
+  });
+
+  // Shopping list
+  const shop = el('div');
+  shop.style.marginTop = '16px';
+  shop.innerHTML = `
+    <div class="widget-title" style="margin-bottom:8px;">🛒 Shopping List</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+      ${Array.from({length:24},()=>`
+        <div style="display:flex;gap:4px;align-items:center;">
+          <div style="width:6px;height:6px;border:1px solid var(--border);border-radius:1px;flex-shrink:0;"></div>
+          <div style="height:1px;flex:1;background:var(--border);"></div>
+        </div>`).join('')}
+    </div>
+  `;
+
+  inner.appendChild(grid);
+  inner.appendChild(shop);
+  return page;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════════════════════ */
+function applyTheme() {
+  const t = THEMES[state.theme];
+  const r = document.documentElement.style;
+  r.setProperty('--theme-primary', t.primary);
+  r.setProperty('--theme-light',   t.light);
+  r.setProperty('--theme-grid',    t.grid);
+  r.setProperty('--theme-line',    t.line);
+  r.setProperty('--planner-font',  FONTS[state.font]);
+  r.setProperty('--planner-ink',   state.ink);
+  r.setProperty('--planner-scale', state.textScale / 100);
+  r.setProperty('--planner-header-scale', state.headerScale / 100);
+  r.setProperty('--line-height',   '24px');
+  r.setProperty('--dot-spacing',   '5mm');
+  r.setProperty('--grid-size',     '3.7mm');
+  document.querySelector('.print-btn').style.background =
+    `linear-gradient(135deg, ${t.primary}, #c4b5fd)`;
+  document.querySelector('.print-btn').style.boxShadow =
+    `0 4px 12px ${t.primary}66`;
+}
+
+function updateTextScale() {
+  const ts = parseInt(document.getElementById('textScale').value);
+  const hs = parseInt(document.getElementById('headerScale').value);
+  state.textScale   = ts;
+  state.headerScale = hs;
+  document.getElementById('textScaleVal').textContent   = ts + '%';
+  document.getElementById('headerScaleVal').textContent = hs + '%';
+  // apply immediately without full re-render
+  document.documentElement.style.setProperty('--planner-scale', ts / 100);
+  document.documentElement.style.setProperty('--planner-header-scale', hs / 100);
+}
+
+function buildDailyPage(date) {
+  if (state.style === 'hobo')     return buildDailyHobo(date);
+  if (state.style === 'ec')       return buildDailyEC(date);
+  if (state.style === 'traveler') return buildDailyTraveler(date);
+  return buildDailyHobo(date);
+}
+
+function buildWeeklyPage(weekNum) {
+  if (state.weeklyStyle === 'horizontal') return buildWeeklyHorizontalPage(weekNum);
+  return buildWeeklyVerticalPage(weekNum);
+}
+
+function updatePrintPageStyle() {
+  const SIZE_MAP = {
+    'A4':          { w:'210mm', h:'297mm' },
+    'A5':          { w:'148mm', h:'210mm' },
+    'Letter':      { w:'8.5in', h:'11in'  },
+    'Half-Letter': { w:'5.5in', h:'8.5in' },
+    'B6':          { w:'128mm', h:'182mm' },
+  };
+  const s = SIZE_MAP[state.paperSize] || SIZE_MAP['A4'];
+  const orient = state.orientation === 'landscape';
+  const w = orient ? s.h : s.w;
+  const h = orient ? s.w : s.h;
+  document.getElementById('print-page-style').textContent =
+    `@media print { @page { size: ${w} ${h}; margin: 0; } }`;
+}
+
+function getDatesInRange(fromStr, toStr) {
+  const dates = [];
+  const from = new Date(fromStr + 'T00:00:00');
+  const to   = new Date(toStr   + 'T00:00:00');
+  if (isNaN(from) || isNaN(to) || from > to) return dates;
+  const cur = new Date(from);
+  while (cur <= to) {
+    dates.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function render() {
+  applyTheme();
+  updatePrintPageStyle();
+  document.body.setAttribute('data-size', state.paperSize);
+
+  // show/hide sub-pickers based on active modules
+  document.getElementById('month-picker-section').style.display =
+    state.modules.monthly ? '' : 'none';
+  document.getElementById('week-picker-section').style.display =
+    state.modules.weekly ? '' : 'none';
+  document.getElementById('day-picker-section').style.display =
+    state.modules.daily ? '' : 'none';
+
+  const container = document.getElementById('pages-container');
+  container.innerHTML = '';
+  let pageCount = 0;
+
+  function addPage(p) {
+    pageCount++;
+    container.appendChild(p);
+    const pn = p.querySelector('.page-number');
+    if (pn) pn.textContent = pageCount;
+  }
+
+  if (state.modules.yearly) addPage(buildYearlyPage());
+
+  if (state.modules.monthly) {
+    [...state.selectedMonths].sort((a,b)=>a-b).forEach(i => addPage(buildMonthlyPage(i)));
+  }
+
+  if (state.modules.weekly) {
+    [...state.selectedWeeks].sort((a,b)=>a-b).forEach(w => addPage(buildWeeklyPage(w)));
+  }
+
+  if (state.modules.daily) {
+    const dates = getDatesInRange(state.dayFrom, state.dayTo);
+    dates.forEach(d => addPage(buildDailyPage(d)));
+    // update label
+    const lbl = document.getElementById('day-count-label');
+    if (lbl) lbl.textContent = dates.length
+      ? `${dates.length} day page${dates.length>1?'s':''} will be generated`
+      : 'No days selected — check your date range';
+  }
+
+  if (state.modules.habit)  addPage(buildHabitPage());
+  if (state.modules.water || state.modules.mood) addPage(buildTrackerPage());
+  if (state.modules.meal)   addPage(buildMealPage());
+
+  const themeLabel = document.querySelector(`.theme-swatch[data-theme="${state.theme}"]`)?.title || state.theme;
+  const styleLabel = { hobo:'Hobo', ec:'Vertical Box', traveler:'Traveler' }[state.style];
+  const orientLabel = state.orientation === 'landscape' ? 'Landscape' : 'Portrait';
+  document.getElementById('previewBadge').textContent =
+    `${state.paperSize} ${orientLabel} · ${state.gridType.charAt(0).toUpperCase()+state.gridType.slice(1)} · ${themeLabel} · ${styleLabel} · ${pageCount}pp`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PILL BUILDERS
+════════════════════════════════════════════════════════════ */
+function buildMonthPills() {
+  const container = document.getElementById('month-pills');
+  container.innerHTML = '';
+  MONTHS_ABB.forEach((name, i) => {
+    const p = el('div', `pill${state.selectedMonths.has(i) ? ' active' : ''}`);
+    p.textContent = name;
+    p.addEventListener('click', () => {
+      if (state.selectedMonths.has(i)) state.selectedMonths.delete(i);
+      else state.selectedMonths.add(i);
+      p.classList.toggle('active', state.selectedMonths.has(i));
+      render();
+    });
+    container.appendChild(p);
+  });
+}
+
+function buildWeekPills() {
+  const container = document.getElementById('week-pills');
+  container.innerHTML = '';
+  for (let w = 1; w <= 52; w++) {
+    const p = el('div', `pill${state.selectedWeeks.has(w) ? ' active' : ''}`);
+    p.textContent = `W${w}`;
+    p.style.fontSize = '9px';
+    p.addEventListener('click', () => {
+      if (state.selectedWeeks.has(w)) state.selectedWeeks.delete(w);
+      else state.selectedWeeks.add(w);
+      p.classList.toggle('active', state.selectedWeeks.has(w));
+      // sync range inputs
+      const sorted = [...state.selectedWeeks].sort((a,b)=>a-b);
+      if (sorted.length) {
+        document.getElementById('weekFrom').value = sorted[0];
+        document.getElementById('weekTo').value   = sorted[sorted.length-1];
+      }
+      render();
+    });
+    container.appendChild(p);
+  }
+}
+
+function refreshWeekPills() {
+  document.querySelectorAll('#week-pills .pill').forEach((p, i) => {
+    p.classList.toggle('active', state.selectedWeeks.has(i + 1));
+  });
+}
+
+function refreshMonthPills() {
+  document.querySelectorAll('#month-pills .pill').forEach((p, i) => {
+    p.classList.toggle('active', state.selectedMonths.has(i));
+  });
+}
+
+/* ── Month helpers ── */
+function selectAllMonths() {
+  MONTHS.forEach((_, i) => state.selectedMonths.add(i));
+  refreshMonthPills(); render();
+}
+function clearAllMonths() {
+  state.selectedMonths.clear(); refreshMonthPills(); render();
+}
+function selectMonthsQ(q) {
+  state.selectedMonths.clear();
+  [0,1,2].forEach(i => state.selectedMonths.add(q*3+i));
+  refreshMonthPills(); render();
+}
+
+/* ── Week helpers ── */
+function selectAllWeeks() {
+  for (let w = 1; w <= 52; w++) state.selectedWeeks.add(w);
+  document.getElementById('weekFrom').value = 1;
+  document.getElementById('weekTo').value   = 52;
+  refreshWeekPills(); render();
+}
+function clearAllWeeks() {
+  state.selectedWeeks.clear();
+  refreshWeekPills(); render();
+}
+function setWeekRange() {
+  const from = parseInt(document.getElementById('weekFrom').value) || 1;
+  const to   = parseInt(document.getElementById('weekTo').value)   || 1;
+  state.selectedWeeks.clear();
+  for (let w = Math.min(from,to); w <= Math.max(from,to); w++) state.selectedWeeks.add(w);
+  refreshWeekPills(); render();
+}
+
+/* ── Day helpers ── */
+function setDayPreset(preset) {
+  const now = new Date();
+  let from, to;
+  if (preset === 'today') {
+    from = to = now;
+  } else if (preset === 'thisweek') {
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+    from = mon;
+    to   = new Date(mon.getTime() + 6*86400000);
+  } else if (preset === 'thismonth') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  } else if (preset === 'nextmonth') {
+    from = new Date(now.getFullYear(), now.getMonth()+1, 1);
+    to   = new Date(now.getFullYear(), now.getMonth()+2, 0);
+  }
+  state.dayFrom = from.toISOString().slice(0,10);
+  state.dayTo   = to.toISOString().slice(0,10);
+  document.getElementById('dayFrom').value = state.dayFrom;
+  document.getElementById('dayTo').value   = state.dayTo;
+  render();
+}
+
+/* ── Notes location ── */
+function setNotesLoc(loc) {
+  state.notesLoc = loc;
+  ['none','side','bottom','both'].forEach(l => {
+    document.getElementById(`nloc-${l}`).classList.toggle('active', l === loc);
+  });
+  const sizeControls  = document.getElementById('notes-size-controls');
+  const sideRow       = document.getElementById('notes-side-size-row');
+  const bottomRow     = document.getElementById('notes-bottom-size-row');
+  sizeControls.style.display = loc === 'none' ? 'none' : '';
+  sideRow.style.display      = (loc === 'side' || loc === 'both')   ? '' : 'none';
+  bottomRow.style.display    = (loc === 'bottom' || loc === 'both') ? '' : 'none';
+  render();
+}
+
+function updateNotesSize() {
+  const sv = parseInt(document.getElementById('notesSideSize').value);
+  const bv = parseInt(document.getElementById('notesBottomSize').value);
+  state.notesSideSize   = sv;
+  state.notesBottomSize = bv;
+  document.getElementById('notesSideSizeVal').textContent   = sv + '%';
+  document.getElementById('notesBottomSizeVal').textContent = bv + '%';
+  render();
+}
+
+/* ── wrapWithNotes: takes a content element and wraps with notes panel(s) ── */
+function wrapWithNotes(contentEl) {
+  const loc = state.notesLoc;
+  const sw  = state.notesSideSize;   // % of row width
+  const bh  = state.notesBottomSize; // % of column height
+
+  if (loc === 'none') return contentEl;
+
+  function makePanel(cls, label) {
+    const p = el('div', 'notes-panel' + (cls ? ' ' + cls : ''));
+    const lbl = el('div', 'notes-panel-label');
+    lbl.textContent = label;
+    p.appendChild(lbl);
+    return p;
+  }
+
+  if (loc === 'side') {
+    const wrap = el('div', 'notes-wrap notes-side');
+    const ca = el('div', 'content-area');
+    ca.appendChild(contentEl);
+    const np = makePanel('', 'Notes');
+    // flex: 0 0 sw% makes the panel take sw% of the row width
+    np.style.flex = `0 0 ${sw}%`;
+    wrap.appendChild(ca);
+    wrap.appendChild(np);
+    return wrap;
+  }
+
+  if (loc === 'bottom') {
+    const wrap = el('div', 'notes-wrap notes-bottom');
+    const ca = el('div', 'content-area');
+    ca.appendChild(contentEl);
+    const np = makePanel('', 'Notes');
+    // flex: 0 0 bh% makes the panel take bh% of the column height
+    np.style.flex = `0 0 ${bh}%`;
+    wrap.appendChild(ca);
+    wrap.appendChild(np);
+    return wrap;
+  }
+
+  if (loc === 'both') {
+    const wrap = el('div', 'notes-wrap notes-both');
+
+    // inner row: content + side panel
+    const innerWrap = el('div', 'inner-wrap');
+    const ca = el('div', 'content-area');
+    ca.appendChild(contentEl);
+    const sidePanel = makePanel('side-panel', 'Notes');
+    sidePanel.style.flex = `0 0 ${sw}%`;
+    innerWrap.appendChild(ca);
+    innerWrap.appendChild(sidePanel);
+
+    // bottom panel below the row
+    const bottomPanel = makePanel('bottom-panel', 'Notes');
+    bottomPanel.style.flex = `0 0 ${bh}%`;
+
+    wrap.appendChild(innerWrap);
+    wrap.appendChild(bottomPanel);
+    return wrap;
+  }
+
+  return contentEl;
+}
+
+/* ── Orientation ── */
+function setOrientation(o) {
+  state.orientation = o;
+  document.getElementById('orient-portrait').classList.toggle('active',  o === 'portrait');
+  document.getElementById('orient-landscape').classList.toggle('active', o === 'landscape');
+  render();
+}
+
+/* ══════════════════════════════════════════════════════════
+   EVENT WIRING
+════════════════════════════════════════════════════════════ */
+function wire() {
+  document.getElementById('paperSize').addEventListener('change', e => {
+    state.paperSize = e.target.value; render();
+  });
+  document.getElementById('gridType').addEventListener('change', e => {
+    state.gridType = e.target.value; render();
+  });
+  document.getElementById('bindingMargin').addEventListener('change', e => {
+    state.binding = e.target.checked; render();
+  });
+  document.getElementById('plannerStyle').addEventListener('change', e => {
+    state.style = e.target.value; render();
+  });
+  document.getElementById('weeklyStyle').addEventListener('change', e => {
+    state.weeklyStyle = e.target.value; render();
+  });
+  document.getElementById('fontStyle').addEventListener('change', e => {
+    state.font = e.target.value; render();
+  });
+  document.getElementById('plannerYear').addEventListener('change', e => {
+    state.year = parseInt(e.target.value); render();
+  });
+
+  document.getElementById('stretchContent').addEventListener('change', e => {
+    state.stretch = e.target.checked; render();
+  });
+  document.getElementById('dayFrom').addEventListener('change', e => {
+    state.dayFrom = e.target.value; render();
+  });
+  document.getElementById('dayTo').addEventListener('change', e => {
+    state.dayTo = e.target.value; render();
+  });
+
+  ['yearly','monthly','weekly','daily'].forEach(m => {
+    document.getElementById(`mod-${m}`).addEventListener('change', e => {
+      state.modules[m] = e.target.checked; render();
+    });
+  });
+  ['habit','water','mood','meal'].forEach(m => {
+    document.getElementById(`mod-${m}`).addEventListener('change', e => {
+      state.modules[m] = e.target.checked; render();
+    });
+  });
+
+  document.querySelectorAll('.theme-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      state.theme = sw.dataset.theme;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.ink-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      document.querySelectorAll('.ink-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      state.ink = sw.dataset.ink;
+      document.documentElement.style.setProperty('--planner-ink', state.ink);
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════ */
+// Seed date inputs
+document.getElementById('dayFrom').value = state.dayFrom;
+document.getElementById('dayTo').value   = state.dayTo;
+
+wire();
+buildMonthPills();
+buildWeekPills();
+render();
+</script>
+</body>
+</html>

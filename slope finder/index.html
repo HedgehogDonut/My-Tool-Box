@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PipeSlope Analyzer — Precision Field Measurement</title>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg-base:      #0d1117;
+  --bg-panel:     #161b22;
+  --bg-card:      #1c2333;
+  --bg-input:     #0d1117;
+  --border:       #30363d;
+  --border-focus: #388bfd;
+  --text-primary: #e6edf3;
+  --text-muted:   #8b949e;
+  --text-dim:     #484f58;
+  --accent-blue:  #388bfd;
+  --accent-cyan:  #39c5cf;
+  --accent-green: #3fb950;
+  --accent-orange:#f0883e;
+  --accent-red:   #f85149;
+  --accent-purple:#bc8cff;
+  --ref-colors:   #39c5cf, #f0883e, #bc8cff;
+  --slope-color:  #f85149;
+  --radius-sm:    4px;
+  --radius-md:    8px;
+  --radius-lg:    12px;
+  --shadow-panel: 0 4px 24px rgba(0,0,0,.5);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* ===== APP SHELL ===== */
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  width: 320px;
+  min-width: 280px;
+  max-width: 320px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow: var(--shadow-panel);
+}
+
+#sidebar-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+#sidebar-header h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sidebar-header h1 .icon {
+  width: 22px; height: 22px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+
+#sidebar-header .subtitle {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: .3px;
+}
+
+#sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#sidebar-body::-webkit-scrollbar { width: 4px; }
+#sidebar-body::-webkit-scrollbar-track { background: transparent; }
+#sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,.02);
+}
+
+.card-body { padding: 10px 12px; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s ease;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.btn:active { transform: scale(.98); }
+
+.btn-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+  width: auto;
+}
+
+.btn-danger { border-color: var(--accent-red); color: var(--accent-red); }
+.btn-danger:hover { background: rgba(248,81,73,.1); color: var(--accent-red); border-color: var(--accent-red); }
+
+.btn-green { border-color: var(--accent-green); color: var(--accent-green); }
+.btn-green:hover { background: rgba(63,185,80,.1); }
+
+/* ===== INPUTS ===== */
+.field { margin-bottom: 8px; }
+.field:last-child { margin-bottom: 0; }
+
+.field label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: .3px;
+}
+
+.field input[type="number"],
+.field input[type="text"] {
+  width: 100%;
+  padding: 6px 9px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: 'Consolas', monospace;
+  transition: border-color .15s;
+  outline: none;
+}
+
+.field input:focus { border-color: var(--accent-blue); }
+.field input::-webkit-inner-spin-button { opacity: .5; }
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* ===== REFERENCE LINE ITEMS ===== */
+.ref-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.ref-item:last-child { margin-bottom: 0; }
+
+.ref-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid var(--border);
+}
+
+.ref-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ref-item-header span {
+  font-size: 11px;
+  font-weight: 600;
+  flex: 1;
+  letter-spacing: .3px;
+}
+
+.ref-item-body { padding: 8px 10px; }
+
+/* ===== RESULTS DISPLAY ===== */
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.result-box {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.result-box .result-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.result-box .result-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Consolas', monospace;
+  color: var(--accent-cyan);
+  line-height: 1;
+}
+
+.result-box .result-value.highlight {
+  color: var(--slope-color);
+  font-size: 20px;
+}
+
+.result-box .result-unit {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.result-wide {
+  grid-column: 1 / -1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.result-wide .rw-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.result-wide .rw-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Consolas', monospace;
+  color: var(--accent-green);
+}
+
+/* ===== STATUS BAR ===== */
+#status-bar {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+.status-dot.active { background: var(--accent-green); animation: pulse 2s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+/* ===== CANVAS AREA ===== */
+#canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 50%, #1a1f2e 0%, #0d1117 100%);
+}
+
+/* Grid overlay for empty state */
+#canvas-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: .3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#main-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  cursor: crosshair;
+  z-index: 1;
+}
+
+/* Drop zone overlay */
+#drop-zone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+
+#drop-zone.hidden { opacity: 0; pointer-events: none; }
+
+.drop-zone-inner {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 60px;
+  text-align: center;
+  background: rgba(22,27,34,.85);
+  backdrop-filter: blur(8px);
+  pointer-events: all;
+}
+
+.drop-zone-inner .dz-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+  opacity: .6;
+}
+
+.drop-zone-inner h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.drop-zone-inner p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+#upload-input { display: none; }
+
+/* Magnifier canvas */
+#magnifier {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  box-shadow: 0 0 0 1px rgba(57,197,207,.3), 0 8px 32px rgba(0,0,0,.6);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 20;
+  display: none;
+  background: #000;
+}
+
+#magnifier canvas {
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* Crosshair in magnifier center */
+#magnifier::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 12px; height: 12px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,100,100,.8);
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 0 0 1px rgba(255,100,100,.4);
+}
+
+/* Toolbar overlay */
+#toolbar {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.tool-btn {
+  width: 36px; height: 36px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  backdrop-filter: blur(4px);
+}
+
+.tool-btn:hover { border-color: var(--accent-blue); color: var(--accent-cyan); }
+.tool-btn:active { transform: scale(.92); }
+
+/* Zoom indicator */
+#zoom-indicator {
+  position: absolute;
+  bottom: 12px; left: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: 'Consolas', monospace;
+  color: var(--text-muted);
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+/* Export section */
+.export-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* Tooltip badge */
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+.badge-blue { background: rgba(56,139,253,.2); color: var(--accent-blue); border: 1px solid rgba(56,139,253,.3); }
+.badge-green { background: rgba(63,185,80,.15); color: var(--accent-green); border: 1px solid rgba(63,185,80,.25); }
+
+/* Scale badge */
+#scale-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  font-family: 'Consolas', monospace;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Info callout */
+.callout {
+  background: rgba(56,139,253,.08);
+  border: 1px solid rgba(56,139,253,.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.callout strong { color: var(--accent-blue); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>
+        <span class="icon">⊿</span>
+        PipeSlope Analyzer
+      </h1>
+      <p class="subtitle">Research-grade pipe angle &amp; slope measurement</p>
+    </div>
+
+    <div id="sidebar-body">
+
+      <!-- UPLOAD -->
+      <div class="card">
+        <div class="card-header">
+          <span>📷 Image</span>
+          <span id="img-info" class="badge badge-blue" style="display:none"></span>
+        </div>
+        <div class="card-body">
+          <input type="file" id="upload-input" accept="image/*">
+          <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">
+            ⬆ Upload Field Photo
+          </button>
+          <p style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center">
+            or drag &amp; drop into canvas area
+          </p>
+        </div>
+      </div>
+
+      <!-- REFERENCE LINES -->
+      <div class="card">
+        <div class="card-header">
+          <span>📐 Reference Scale Lines</span>
+          <button class="btn btn-sm" id="add-ref-btn" onclick="addRefLine()">+ Add</button>
+        </div>
+        <div class="card-body">
+          <div id="ref-lines-list"></div>
+          <div class="callout" style="margin-top:8px">
+            <strong>How:</strong> Drag cyan anchors onto a known dimension in the photo (e.g., pipe diameter, ruler). Enter its real-world length below.
+          </div>
+          <div style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:11px; color:var(--text-muted)">Computed scale:</span>
+            <span id="scale-badge" class="badge badge-blue">— px/cm</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAMERA TILT CALIBRATION -->
+      <div class="card">
+        <div class="card-header">
+          <span>📱 Camera Tilt Correction</span>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>Pitch/Roll correction (°) — positive = camera tilted up</label>
+            <input type="number" id="tilt-input" value="0" step="0.1" min="-45" max="45"
+              oninput="APP.tiltDeg = parseFloat(this.value)||0; redraw();">
+          </div>
+          <div class="callout">
+            <strong>Use when:</strong> photo wasn't perfectly perpendicular to the ground. Subtracts this angle from the measured slope.
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="card">
+        <div class="card-header">
+          <span>📊 Measurement Results</span>
+          <span class="badge badge-green">Live</span>
+        </div>
+        <div class="card-body">
+          <div class="result-grid">
+            <div class="result-box">
+              <div class="result-label">Angle (°)</div>
+              <div class="result-value highlight" id="res-angle">—</div>
+              <div class="result-unit">from horizontal</div>
+            </div>
+            <div class="result-box">
+              <div class="result-label">Slope %</div>
+              <div class="result-value" id="res-slope">—</div>
+              <div class="result-unit">rise / run × 100</div>
+            </div>
+            <div class="result-box">
+              <div class="result-label">Corrected °</div>
+              <div class="result-value" id="res-corrected">—</div>
+              <div class="result-unit">with tilt offset</div>
+            </div>
+            <div class="result-box">
+              <div class="result-label">Ratio</div>
+              <div class="result-value" id="res-ratio">—</div>
+              <div class="result-unit">1 : N</div>
+            </div>
+            <div class="result-wide">
+              <span class="rw-label">Line length (real-world)</span>
+              <span class="rw-value" id="res-length">— cm</span>
+            </div>
+            <div class="result-wide">
+              <span class="rw-label">Pixel length</span>
+              <span class="rw-value" id="res-px">— px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPORT -->
+      <div class="card">
+        <div class="card-header"><span>💾 Export</span></div>
+        <div class="card-body">
+          <div class="export-row">
+            <button class="btn btn-green" onclick="exportImage()">⬇ PNG Image</button>
+            <button class="btn" onclick="exportJSON()">⬇ JSON Data</button>
+          </div>
+          <div style="margin-top:6px">
+            <button class="btn" onclick="exportCSV()">⬇ CSV Report</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar-body -->
+
+    <div id="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Upload a field photo to begin</span>
+    </div>
+  </div><!-- /sidebar -->
+
+  <!-- ===== CANVAS AREA ===== -->
+  <div id="canvas-area" id="canvas-wrap">
+
+    <!-- Empty state -->
+    <div id="drop-zone">
+      <div class="drop-zone-inner">
+        <div class="dz-icon">⊿</div>
+        <h2>Drop a field photo here</h2>
+        <p>Upload a photograph of the pipe installation.<br>
+        Works best with clear side-view images.</p>
+        <button class="btn btn-primary" style="width:auto;padding:9px 24px"
+          onclick="document.getElementById('upload-input').click()">
+          Browse Files
+        </button>
+      </div>
+    </div>
+
+    <!-- Main drawing canvas -->
+    <canvas id="main-canvas"></canvas>
+
+    <!-- Magnifier lens -->
+    <div id="magnifier">
+      <canvas id="mag-canvas" width="160" height="160"></canvas>
+    </div>
+
+    <!-- Toolbar overlay -->
+    <div id="toolbar">
+      <button class="tool-btn" title="Zoom In" onclick="zoomBy(1.25)">+</button>
+      <button class="tool-btn" title="Zoom Out" onclick="zoomBy(0.8)">−</button>
+      <button class="tool-btn" title="Fit to Screen" onclick="fitImage()">⊡</button>
+      <button class="tool-btn" title="Reset View" onclick="resetView()">↺</button>
+    </div>
+
+    <!-- Zoom indicator -->
+    <div id="zoom-indicator">100%</div>
+
+  </div><!-- /canvas-area -->
+</div><!-- /app -->
+
+<!-- ===== JAVASCRIPT ENGINE ===== -->
+<script>
+'use strict';
+
+/* ============================================================
+   APPLICATION STATE
+   All measurements stored in IMAGE-SPACE coordinates (px).
+   The viewport transform (zoom + pan) maps image → canvas.
+   ============================================================ */
+const APP = {
+  img:    null,   // HTMLImageElement
+  imgW:   0,
+  imgH:   0,
+
+  // Viewport transform
+  zoom:   1,
+  panX:   0,     // canvas-space offset
+  panY:   0,
+
+  // Reference lines (up to 3)
+  // Each: { p1:{x,y}, p2:{x,y}, realLen:number, id:number }
+  refs:   [],
+  nextRefId: 0,
+
+  // Slope measurement line (image-space coords)
+  slope: { p1: { x: 100, y: 150 }, p2: { x: 300, y: 150 } },
+
+  // Interaction
+  drag:       null,  // { kind:'ref'|'slope', idx:number, pt:'p1'|'p2' }
+  isPanning:  false,
+  panStart:   { x: 0, y: 0 },
+  panOrigin:  { x: 0, y: 0 },
+
+  // Magnifier
+  magActive:    false,
+  magImgTarget: { x: 0, y: 0 },  // image-space coords to magnify
+  magCanvasPos: { x: 0, y: 0 },  // canvas-space position of mouse
+
+  // Settings
+  tiltDeg: 0,   // camera tilt correction in degrees
+
+  // Computed
+  pxPerCm: null,  // null if no valid refs
+};
+
+/* Reference line colour palette */
+const REF_COLORS = ['#39c5cf', '#f0883e', '#bc8cff'];
+
+/* ============================================================
+   DOM REFERENCES
+   ============================================================ */
+const canvas   = document.getElementById('main-canvas');
+const ctx      = canvas.getContext('2d');
+const magDiv   = document.getElementById('magnifier');
+const magCanvas= document.getElementById('mag-canvas');
+const magCtx   = magCanvas.getContext('2d');
+const dropZone = document.getElementById('drop-zone');
+const zoomInd  = document.getElementById('zoom-indicator');
+const statusDot  = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+
+/* ============================================================
+   CANVAS SIZING
+   ============================================================ */
+function resizeCanvas() {
+  const area = document.getElementById('canvas-area');
+  canvas.width  = area.clientWidth;
+  canvas.height = area.clientHeight;
+  redraw();
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* ============================================================
+   COORDINATE TRANSFORMS
+   imgToCanvas(pt)  → canvas-space {x,y}
+   canvasToImg(pt)  → image-space  {x,y}
+   ============================================================ */
+function imgToCanvas(pt) {
+  return {
+    x: pt.x * APP.zoom + APP.panX,
+    y: pt.y * APP.zoom + APP.panY,
+  };
+}
+
+function canvasToImg(pt) {
+  return {
+    x: (pt.x - APP.panX) / APP.zoom,
+    y: (pt.y - APP.panY) / APP.zoom,
+  };
+}
+
+/* ============================================================
+   IMAGE LOADING
+   ============================================================ */
+document.getElementById('upload-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) loadImageFile(file);
+});
+
+// Drag-and-drop onto canvas area
+const canvasArea = document.getElementById('canvas-area');
+canvasArea.addEventListener('dragover', e => { e.preventDefault(); });
+canvasArea.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageFile(file);
+});
+
+function loadImageFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    APP.img  = img;
+    APP.imgW = img.naturalWidth;
+    APP.imgH = img.naturalHeight;
+    URL.revokeObjectURL(url);
+
+    fitImage();  // auto-fit viewport
+
+    // Place default slope line in middle of image
+    APP.slope.p1 = { x: APP.imgW * .25, y: APP.imgH * .5 };
+    APP.slope.p2 = { x: APP.imgW * .75, y: APP.imgH * .5 };
+
+    // Hide drop zone
+    dropZone.classList.add('hidden');
+    dropZone.style.pointerEvents = 'none';
+
+    // Update image info badge
+    const badge = document.getElementById('img-info');
+    badge.textContent = `${APP.imgW}×${APP.imgH}`;
+    badge.style.display = '';
+
+    setStatus('Image loaded — drag anchor points to measure', true);
+    redraw();
+  };
+  img.src = url;
+}
+
+/* ============================================================
+   VIEWPORT: FIT & ZOOM
+   ============================================================ */
+function fitImage() {
+  if (!APP.img) return;
+  const margin = 32;
+  const cw = canvas.width  - margin * 2;
+  const ch = canvas.height - margin * 2;
+  const scale = Math.min(cw / APP.imgW, ch / APP.imgH);
+  APP.zoom = scale;
+  APP.panX = (canvas.width  - APP.imgW * scale) / 2;
+  APP.panY = (canvas.height - APP.imgH * scale) / 2;
+  updateZoomIndicator();
+  redraw();
+}
+
+function resetView() { fitImage(); }
+
+function zoomBy(factor, cx, cy) {
+  // cx, cy in canvas space — default to canvas centre
+  cx = cx ?? canvas.width  / 2;
+  cy = cy ?? canvas.height / 2;
+
+  const newZoom = Math.max(0.05, Math.min(40, APP.zoom * factor));
+  const ratio   = newZoom / APP.zoom;
+
+  APP.panX = cx - ratio * (cx - APP.panX);
+  APP.panY = cy - ratio * (cy - APP.panY);
+  APP.zoom = newZoom;
+
+  updateZoomIndicator();
+  redraw();
+}
+
+function updateZoomIndicator() {
+  zoomInd.textContent = `${Math.round(APP.zoom * 100)}%`;
+}
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect   = canvas.getBoundingClientRect();
+  const cx     = e.clientX - rect.left;
+  const cy     = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  zoomBy(factor, cx, cy);
+}, { passive: false });
+
+/* ============================================================
+   REFERENCE LINE MANAGEMENT
+   ============================================================ */
+function addRefLine() {
+  if (APP.refs.length >= 3) {
+    alert('Maximum 3 reference lines allowed.');
+    return;
+  }
+  const idx = APP.refs.length;
+  const cx  = APP.imgW / 2;
+  const cy  = APP.imgH * (.35 + idx * .1);
+  const ref = {
+    id:      APP.nextRefId++,
+    p1:      { x: cx - APP.imgW * .12, y: cy },
+    p2:      { x: cx + APP.imgW * .12, y: cy },
+    realLen: 0,
+  };
+  APP.refs.push(ref);
+  renderRefList();
+  redraw();
+}
+
+function removeRefLine(id) {
+  APP.refs = APP.refs.filter(r => r.id !== id);
+  renderRefList();
+  computeScale();
+  redraw();
+}
+
+function renderRefList() {
+  const list = document.getElementById('ref-lines-list');
+  list.innerHTML = '';
+  if (APP.refs.length === 0) {
+    list.innerHTML = '<p style="font-size:11px;color:var(--text-dim);text-align:center;padding:8px 0">No reference lines — click "+ Add" above</p>';
+    return;
+  }
+  APP.refs.forEach((ref, i) => {
+    const color = REF_COLORS[i % REF_COLORS.length];
+    const div = document.createElement('div');
+    div.className = 'ref-item';
+    div.innerHTML = `
+      <div class="ref-item-header">
+        <div class="ref-dot" style="background:${color}"></div>
+        <span>Reference ${i + 1}</span>
+        <button class="btn btn-sm btn-danger" onclick="removeRefLine(${ref.id})">✕</button>
+      </div>
+      <div class="ref-item-body">
+        <div class="input-row">
+          <div class="field">
+            <label>Real Length (cm)</label>
+            <input type="number" min="0" step="0.1" value="${ref.realLen || ''}"
+              placeholder="e.g. 10.0"
+              oninput="APP.refs.find(r=>r.id===${ref.id}).realLen=parseFloat(this.value)||0; computeScale(); redraw();">
+          </div>
+          <div class="field">
+            <label>Pixel length</label>
+            <input type="number" readonly
+              id="ref-px-${ref.id}"
+              style="background:var(--bg-base);cursor:default"
+              value="${Math.round(lineLenImg(ref))}">
+          </div>
+        </div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* Pixel length of a line in IMAGE space */
+function lineLenImg(line) {
+  const dx = line.p2.x - line.p1.x;
+  const dy = line.p2.y - line.p1.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/* ============================================================
+   SCALE COMPUTATION
+   Multi-reference weighted average.
+   Weight = realLen (longer physical refs give more reliable px/cm).
+   ============================================================ */
+function computeScale() {
+  const valid = APP.refs.filter(r => r.realLen > 0);
+  if (valid.length === 0) {
+    APP.pxPerCm = null;
+    document.getElementById('scale-badge').textContent = '— px/cm';
+    return;
+  }
+
+  // Weighted average: Σ(pxLen * realLen) / Σ(realLen²)
+  // This is a least-squares single-parameter regression through the origin.
+  let num = 0, den = 0;
+  valid.forEach(r => {
+    const px = lineLenImg(r);
+    num += px * r.realLen;
+    den += r.realLen * r.realLen;
+  });
+  APP.pxPerCm = num / den;
+
+  document.getElementById('scale-badge').textContent =
+    `${APP.pxPerCm.toFixed(2)} px/cm`;
+}
+
+/* ============================================================
+   SLOPE MATH
+   ============================================================ */
+function computeSlope() {
+  const dx = APP.slope.p2.x - APP.slope.p1.x;
+  // Note: in image space Y increases downward.
+  // For engineering slope, we flip Y so upward is positive.
+  const dy = -(APP.slope.p2.y - APP.slope.p1.y);
+
+  // Raw angle from horizontal (−180 to +180°)
+  const rawDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+
+  // Normalize to the smallest absolute angle from horizontal
+  // (pipes can be measured either direction; we want 0–90 range is most useful)
+  let angleDeg = rawDeg;
+  // Bring into (-90, 90] range — i.e. angle of inclination
+  if (angleDeg >  90) angleDeg -= 180;
+  if (angleDeg < -90) angleDeg += 180;
+
+  // Apply camera tilt correction
+  const correctedDeg = angleDeg - APP.tiltDeg;
+
+  // Slope percentage: rise / run × 100 = tan(angle) × 100
+  const slopePct = Math.tan(correctedDeg * Math.PI / 180) * 100;
+
+  // 1:N ratio
+  const absSlope = Math.abs(slopePct);
+  const ratioN   = absSlope > 0.0001 ? (100 / absSlope) : Infinity;
+
+  // Physical length of slope line
+  const pxLen = lineLenImg(APP.slope);
+  const cmLen = APP.pxPerCm ? pxLen / APP.pxPerCm : null;
+
+  return { angleDeg, correctedDeg, slopePct, ratioN, pxLen, cmLen };
+}
+
+function updateResults() {
+  const r = computeSlope();
+
+  document.getElementById('res-angle').textContent     = r.angleDeg.toFixed(2) + '°';
+  document.getElementById('res-corrected').textContent = r.correctedDeg.toFixed(2) + '°';
+  document.getElementById('res-slope').textContent     = r.slopePct.toFixed(3) + '%';
+  document.getElementById('res-px').textContent        = Math.round(r.pxLen) + ' px';
+
+  if (isFinite(r.ratioN)) {
+    document.getElementById('res-ratio').textContent = '1:' + r.ratioN.toFixed(1);
+  } else {
+    document.getElementById('res-ratio').textContent = '∞';
+  }
+
+  if (r.cmLen !== null) {
+    document.getElementById('res-length').textContent = r.cmLen.toFixed(2) + ' cm';
+  } else {
+    document.getElementById('res-length').textContent = '— cm (set ref)';
+  }
+
+  // Update pixel length readouts on ref lines
+  APP.refs.forEach(ref => {
+    const el = document.getElementById(`ref-px-${ref.id}`);
+    if (el) el.value = Math.round(lineLenImg(ref));
+  });
+}
+
+/* ============================================================
+   MAIN DRAW LOOP
+   ============================================================ */
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw background image
+  if (APP.img) {
+    ctx.save();
+    ctx.translate(APP.panX, APP.panY);
+    ctx.scale(APP.zoom, APP.zoom);
+    ctx.drawImage(APP.img, 0, 0);
+    ctx.restore();
+  }
+
+  // Draw reference lines
+  APP.refs.forEach((ref, i) => {
+    const color = REF_COLORS[i % REF_COLORS.length];
+    drawMeasureLine(ref.p1, ref.p2, color, `Ref ${i + 1}`, true);
+  });
+
+  // Draw slope line
+  drawSlopeLine();
+
+  // Update results panel
+  updateResults();
+}
+
+/* ============================================================
+   DRAWING PRIMITIVES
+   ============================================================ */
+
+/* Anti-alias helper: snap to half-pixel for crisp lines */
+function snap(v) { return Math.round(v) + 0.5; }
+
+function drawMeasureLine(p1img, p2img, color, label, showTicks) {
+  const p1c = imgToCanvas(p1img);
+  const p2c = imgToCanvas(p2img);
+
+  ctx.save();
+
+  // Shadow for visibility on any background
+  ctx.shadowColor = 'rgba(0,0,0,0.7)';
+  ctx.shadowBlur  = 4;
+
+  // Main line
+  ctx.beginPath();
+  ctx.moveTo(snap(p1c.x), snap(p1c.y));
+  ctx.lineTo(snap(p2c.x), snap(p2c.y));
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([]);
+  ctx.stroke();
+
+  // End ticks
+  if (showTicks) {
+    const dx = p2c.x - p1c.x;
+    const dy = p2c.y - p1c.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0) {
+      const nx = -dy / len * 6;
+      const ny =  dx / len * 6;
+      [[p1c.x, p1c.y], [p2c.x, p2c.y]].forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.moveTo(x + nx, y + ny);
+        ctx.lineTo(x - nx, y - ny);
+        ctx.stroke();
+      });
+    }
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+
+  // Label
+  const mx = (p1c.x + p2c.x) / 2;
+  const my = (p1c.y + p2c.y) / 2;
+  ctx.font      = 'bold 11px Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillText(label, mx + 1, my - 7);
+  ctx.fillStyle = color;
+  ctx.fillText(label, mx, my - 8);
+
+  ctx.restore();
+
+  // Anchor nodes
+  drawAnchor(p1c, color);
+  drawAnchor(p2c, color);
+}
+
+function drawAnchor(pc, color, radius = 7) {
+  ctx.save();
+  // Outer glow
+  ctx.beginPath();
+  ctx.arc(pc.x, pc.y, radius + 3, 0, Math.PI * 2);
+  ctx.fillStyle = color.replace(')', ',.15)').replace('rgb', 'rgba').replace('#', 'rgba(').replace(')', ',0.15)');
+  // Simpler: just use a semi-transparent version
+  ctx.fillStyle = color + '28';  // alpha hex
+  ctx.fill();
+
+  // Filled circle
+  ctx.beginPath();
+  ctx.arc(pc.x, pc.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 1.5;
+  ctx.fill();
+  ctx.stroke();
+
+  // Centre dot
+  ctx.beginPath();
+  ctx.arc(pc.x, pc.y, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawSlopeLine() {
+  if (!APP.img) return;
+
+  const p1c = imgToCanvas(APP.slope.p1);
+  const p2c = imgToCanvas(APP.slope.p2);
+  const color = '#f85149';  // slope red
+
+  ctx.save();
+
+  // Dashed helper line extending across full canvas
+  const dx = p2c.x - p1c.x;
+  const dy = p2c.y - p1c.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len > 0) {
+    const ux = dx / len, uy = dy / len;
+    const ext = 2000;
+    ctx.beginPath();
+    ctx.moveTo(p1c.x - ux * ext, p1c.y - uy * ext);
+    ctx.lineTo(p2c.x + ux * ext, p2c.y + uy * ext);
+    ctx.strokeStyle = 'rgba(248,81,73,0.15)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Horizontal reference line through p1
+  ctx.beginPath();
+  ctx.moveTo(snap(p1c.x - 40), snap(p1c.y));
+  ctx.lineTo(snap(p1c.x + 80), snap(p1c.y));
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw angle arc
+  const r = computeSlope();
+  if (len > 30) {
+    const arcR = Math.min(40, len * 0.25);
+    const startA = 0;  // horizontal right
+    // angle in canvas space: Y is flipped, so negate
+    const endA   = Math.atan2(dy, dx);
+    ctx.beginPath();
+    // Draw arc from 0 to the line angle
+    ctx.arc(p1c.x, p1c.y, arcR, Math.min(0, endA), Math.max(0, endA));
+    ctx.strokeStyle = 'rgba(248,200,73,0.6)';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    // Angle label near arc
+    const midA = endA / 2;
+    const lx   = p1c.x + (arcR + 12) * Math.cos(midA);
+    const ly   = p1c.y + (arcR + 12) * Math.sin(midA);
+    ctx.font      = 'bold 12px Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur  = 4;
+    ctx.fillStyle = '#f8c849';
+    ctx.fillText(`${Math.abs(r.correctedDeg).toFixed(2)}°`, lx, ly);
+    ctx.shadowBlur = 0;
+  }
+
+  // Main slope line
+  ctx.beginPath();
+  ctx.moveTo(snap(p1c.x), snap(p1c.y));
+  ctx.lineTo(snap(p2c.x), snap(p2c.y));
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur  = 6;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Rise/run indicators
+  if (Math.abs(p2c.y - p1c.y) > 8 && Math.abs(p2c.x - p1c.x) > 8) {
+    // Vertical drop line
+    ctx.beginPath();
+    ctx.moveTo(snap(p2c.x), snap(p1c.y));
+    ctx.lineTo(snap(p2c.x), snap(p2c.y));
+    ctx.strokeStyle = 'rgba(248,200,73,0.5)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Slope label above midpoint
+  const mx = (p1c.x + p2c.x) / 2;
+  const my = (p1c.y + p2c.y) / 2 - 18;
+  ctx.font      = 'bold 12px Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur  = 5;
+  ctx.fillStyle = color;
+  ctx.fillText(`${r.slopePct.toFixed(3)}%`, mx, my);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+
+  // Anchor nodes
+  drawAnchor(p1c, color, 8);
+  drawAnchor(p2c, color, 8);
+}
+
+/* ============================================================
+   MOUSE INTERACTION
+   ============================================================ */
+const ANCHOR_RADIUS = 12;  // canvas-space hit radius
+
+function getAnchorAtCanvas(cx, cy) {
+  // Check slope line anchors first (higher priority)
+  for (const pt of ['p1', 'p2']) {
+    const ac = imgToCanvas(APP.slope[pt]);
+    const d  = Math.hypot(cx - ac.x, cy - ac.y);
+    if (d <= ANCHOR_RADIUS) return { kind: 'slope', pt };
+  }
+  // Check reference anchors
+  for (let i = APP.refs.length - 1; i >= 0; i--) {
+    for (const pt of ['p1', 'p2']) {
+      const ac = imgToCanvas(APP.refs[i][pt]);
+      const d  = Math.hypot(cx - ac.x, cy - ac.y);
+      if (d <= ANCHOR_RADIUS) return { kind: 'ref', idx: i, pt };
+    }
+  }
+  return null;
+}
+
+function getMouseCanvas(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (!APP.img) return;
+  const mc   = getMouseCanvas(e);
+  const hit  = getAnchorAtCanvas(mc.x, mc.y);
+
+  if (hit) {
+    APP.drag = hit;
+    canvas.style.cursor = 'grabbing';
+  } else if (e.button === 1 || e.altKey) {
+    // Middle mouse / Alt = pan
+    APP.isPanning   = true;
+    APP.panStart    = mc;
+    APP.panOrigin   = { x: APP.panX, y: APP.panY };
+    canvas.style.cursor = 'move';
+  } else {
+    // Left drag on empty area = pan too
+    APP.isPanning   = true;
+    APP.panStart    = mc;
+    APP.panOrigin   = { x: APP.panX, y: APP.panY };
+    canvas.style.cursor = 'move';
+  }
+  e.preventDefault();
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!APP.img) return;
+  const mc = getMouseCanvas(e);
+
+  if (APP.drag) {
+    const imgPt = canvasToImg(mc);
+    // Clamp to image bounds (slight overshoot allowed)
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    imgPt.x = clamp(imgPt.x, -APP.imgW * 0.1, APP.imgW * 1.1);
+    imgPt.y = clamp(imgPt.y, -APP.imgH * 0.1, APP.imgH * 1.1);
+
+    if (APP.drag.kind === 'slope') {
+      APP.slope[APP.drag.pt] = imgPt;
+    } else {
+      APP.refs[APP.drag.idx][APP.drag.pt] = imgPt;
+    }
+
+    // Show magnifier at dragged anchor
+    showMagnifier(mc, imgPt);
+    computeScale();
+    redraw();
+    return;
+  }
+
+  if (APP.isPanning) {
+    APP.panX = APP.panOrigin.x + (mc.x - APP.panStart.x);
+    APP.panY = APP.panOrigin.y + (mc.y - APP.panStart.y);
+    redraw();
+    return;
+  }
+
+  // Hover: show magnifier near anchors
+  const hit = getAnchorAtCanvas(mc.x, mc.y);
+  if (hit) {
+    canvas.style.cursor = 'grab';
+    let imgPt;
+    if (hit.kind === 'slope') imgPt = APP.slope[hit.pt];
+    else imgPt = APP.refs[hit.idx][hit.pt];
+    showMagnifier(mc, imgPt);
+  } else {
+    canvas.style.cursor = 'crosshair';
+    hideMagnifier();
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  APP.drag      = null;
+  APP.isPanning = false;
+  canvas.style.cursor = 'crosshair';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  APP.drag      = null;
+  APP.isPanning = false;
+  hideMagnifier();
+});
+
+/* ============================================================
+   MAGNIFIER LENS
+   Renders a 3× magnified view of the image around imgPt.
+   ============================================================ */
+const MAG_SIZE   = 160;   // diameter of lens
+const MAG_ZOOM   = 3;     // magnification factor
+const MAG_OFFSET = 90;    // px offset from cursor
+
+function showMagnifier(canvasPos, imgPt) {
+  if (!APP.img) return;
+
+  // Position lens: prefer upper-left of cursor, shift if near edges
+  let lx = canvasPos.x + MAG_OFFSET;
+  let ly = canvasPos.y - MAG_SIZE - 10;
+  if (lx + MAG_SIZE > canvas.width)  lx = canvasPos.x - MAG_SIZE - MAG_OFFSET;
+  if (ly < 0)                         ly = canvasPos.y + 20;
+
+  magDiv.style.left    = lx + 'px';
+  magDiv.style.top     = ly + 'px';
+  magDiv.style.display = 'block';
+  magDiv.style.width   = MAG_SIZE + 'px';
+  magDiv.style.height  = MAG_SIZE + 'px';
+
+  // Render magnified content
+  const half    = MAG_SIZE / 2;
+  const srcHalf = half / MAG_ZOOM;   // how many image-px to show on each side
+
+  magCtx.clearRect(0, 0, MAG_SIZE, MAG_SIZE);
+
+  // Clip to circle
+  magCtx.save();
+  magCtx.beginPath();
+  magCtx.arc(half, half, half, 0, Math.PI * 2);
+  magCtx.clip();
+
+  // Draw the magnified region of the original image
+  magCtx.drawImage(
+    APP.img,
+    imgPt.x - srcHalf, imgPt.y - srcHalf,  // source top-left
+    srcHalf * 2,        srcHalf * 2,        // source size
+    0, 0,                                    // dest top-left
+    MAG_SIZE, MAG_SIZE                       // dest size
+  );
+
+  // Crosshair lines
+  magCtx.strokeStyle = 'rgba(255, 80, 80, 0.7)';
+  magCtx.lineWidth   = 1;
+  magCtx.setLineDash([3, 3]);
+  magCtx.beginPath();
+  magCtx.moveTo(half, 0);   magCtx.lineTo(half, MAG_SIZE);
+  magCtx.moveTo(0, half);   magCtx.lineTo(MAG_SIZE, half);
+  magCtx.stroke();
+  magCtx.setLineDash([]);
+
+  magCtx.restore();
+
+  // Coordinate readout
+  magCtx.font      = 'bold 9px Consolas, monospace';
+  magCtx.textAlign = 'center';
+  magCtx.fillStyle = 'rgba(0,0,0,0.6)';
+  magCtx.fillRect(half - 36, MAG_SIZE - 16, 72, 13);
+  magCtx.fillStyle = '#39c5cf';
+  magCtx.fillText(
+    `${imgPt.x.toFixed(1)}, ${imgPt.y.toFixed(1)}`,
+    half, MAG_SIZE - 5
+  );
+}
+
+function hideMagnifier() {
+  magDiv.style.display = 'none';
+}
+
+/* ============================================================
+   EXPORT FUNCTIONS
+   ============================================================ */
+function exportImage() {
+  if (!APP.img) { alert('No image loaded.'); return; }
+
+  // Create off-screen canvas at full image resolution
+  const oc  = document.createElement('canvas');
+  oc.width  = APP.imgW;
+  oc.height = APP.imgH;
+  const oc_ctx = oc.getContext('2d');
+
+  // Draw full-res image
+  oc_ctx.drawImage(APP.img, 0, 0);
+
+  // Temporarily set zoom/pan so everything is in image-space 1:1
+  const savedZoom = APP.zoom, savedPanX = APP.panX, savedPanY = APP.panY;
+  APP.zoom = 1; APP.panX = 0; APP.panY = 0;
+
+  // Re-draw overlays at full resolution using the off-screen ctx
+  const savedCtx = ctx;  // we swap the draw target
+  // Rather than swapping global ctx, draw manually to oc_ctx
+  drawOverlaysToCtx(oc_ctx, 1, 0, 0);
+
+  APP.zoom = savedZoom; APP.panX = savedPanX; APP.panY = savedPanY;
+
+  // Watermark
+  oc_ctx.font      = 'bold 14px Arial, sans-serif';
+  oc_ctx.fillStyle = 'rgba(57,197,207,0.8)';
+  oc_ctx.fillText(`PipeSlope Analyzer — ${new Date().toISOString().slice(0,10)}`, 12, APP.imgH - 10);
+
+  // Trigger download
+  const link = document.createElement('a');
+  link.download = `pipeslope_${Date.now()}.png`;
+  link.href     = oc.toDataURL('image/png');
+  link.click();
+}
+
+/* Draw all overlays to a given 2D context with given transform */
+function drawOverlaysToCtx(c, zoom, panX, panY) {
+  const toCanvas = pt => ({ x: pt.x * zoom + panX, y: pt.y * zoom + panY });
+
+  const drawLine = (p1, p2, color) => {
+    const cp1 = toCanvas(p1), cp2 = toCanvas(p2);
+    c.beginPath();
+    c.moveTo(cp1.x, cp1.y);
+    c.lineTo(cp2.x, cp2.y);
+    c.strokeStyle = color;
+    c.lineWidth   = 2;
+    c.stroke();
+
+    // Anchors
+    [cp1, cp2].forEach(pt => {
+      c.beginPath();
+      c.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+      c.fillStyle   = color;
+      c.strokeStyle = '#fff';
+      c.lineWidth   = 2;
+      c.fill();
+      c.stroke();
+    });
+  };
+
+  APP.refs.forEach((ref, i) => drawLine(ref.p1, ref.p2, REF_COLORS[i]));
+  drawLine(APP.slope.p1, APP.slope.p2, '#f85149');
+
+  // Slope label
+  const r   = computeSlope();
+  const scp = toCanvas({ x: (APP.slope.p1.x + APP.slope.p2.x) / 2, y: APP.slope.p1.y - 20 / zoom });
+  c.font      = `bold ${Math.max(14, 14 / zoom)}px Consolas, monospace`;
+  c.textAlign = 'center';
+  c.fillStyle = '#f85149';
+  c.fillText(`${r.correctedDeg.toFixed(2)}° | ${r.slopePct.toFixed(3)}%`, scp.x, scp.y);
+}
+
+function buildMeasurementData() {
+  const r    = computeSlope();
+  const date = new Date().toISOString();
+  return {
+    timestamp:        date,
+    imageSize:        `${APP.imgW}×${APP.imgH}`,
+    tiltCorrectionDeg: APP.tiltDeg,
+    pxPerCm:          APP.pxPerCm ?? null,
+    slopeLine: {
+      p1:       APP.slope.p1,
+      p2:       APP.slope.p2,
+      pixelLen: r.pxLen,
+      cmLen:    r.cmLen,
+    },
+    results: {
+      rawAngleDeg:       r.angleDeg,
+      correctedAngleDeg: r.correctedDeg,
+      slopePct:          r.slopePct,
+      ratio:             isFinite(r.ratioN) ? `1:${r.ratioN.toFixed(1)}` : '∞',
+    },
+    referenceLines: APP.refs.map((ref, i) => ({
+      index:    i + 1,
+      p1:       ref.p1,
+      p2:       ref.p2,
+      pxLen:    lineLenImg(ref),
+      realLen:  ref.realLen,
+    })),
+  };
+}
+
+function exportJSON() {
+  const data = buildMeasurementData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.download = `pipeslope_${Date.now()}.json`;
+  link.href     = URL.createObjectURL(blob);
+  link.click();
+}
+
+function exportCSV() {
+  const d = buildMeasurementData();
+  const r = d.results;
+  const s = d.slopeLine;
+
+  const rows = [
+    ['Field', 'Value', 'Unit'],
+    ['Timestamp',           d.timestamp,              ''],
+    ['Image Size',          d.imageSize,              'px'],
+    ['Tilt Correction',     d.tiltCorrectionDeg,      '°'],
+    ['Scale',               d.pxPerCm ?? 'N/A',       'px/cm'],
+    ['Raw Angle',           r.rawAngleDeg?.toFixed(4), '°'],
+    ['Corrected Angle',     r.correctedAngleDeg?.toFixed(4), '°'],
+    ['Slope %',             r.slopePct?.toFixed(4),   '%'],
+    ['Ratio',               r.ratio,                  '1:N'],
+    ['Slope Line Px Length',s.pixelLen?.toFixed(2),   'px'],
+    ['Slope Line cm Length',s.cmLen?.toFixed(2) ?? 'N/A', 'cm'],
+  ];
+
+  d.referenceLines.forEach(rl => {
+    rows.push([`Ref ${rl.index} px length`, rl.pxLen?.toFixed(2), 'px']);
+    rows.push([`Ref ${rl.index} real length`, rl.realLen, 'cm']);
+  });
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const link = document.createElement('a');
+  link.download = `pipeslope_${Date.now()}.csv`;
+  link.href     = URL.createObjectURL(blob);
+  link.click();
+}
+
+/* ============================================================
+   STATUS BAR
+   ============================================================ */
+function setStatus(msg, active = false) {
+  statusText.textContent    = msg;
+  statusDot.className       = 'status-dot' + (active ? ' active' : '');
+}
+
+/* ============================================================
+   KEYBOARD SHORTCUTS
+   ============================================================ */
+window.addEventListener('keydown', e => {
+  if (!APP.img) return;
+  if (e.key === '=' || e.key === '+') zoomBy(1.2);
+  if (e.key === '-' || e.key === '_') zoomBy(1 / 1.2);
+  if (e.key === 'f' || e.key === 'F') fitImage();
+  if (e.key === 'r' || e.key === 'R') resetView();
+});
+
+/* ============================================================
+   TOUCH SUPPORT (basic pinch-to-zoom)
+   ============================================================ */
+let lastTouchDist = null;
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastTouchDist = Math.hypot(dx, dy);
+  }
+}, { passive: true });
+
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && lastTouchDist) {
+    const dx   = e.touches[0].clientX - e.touches[1].clientX;
+    const dy   = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    const cx   = (e.touches[0].clientX + e.touches[1].clientX) / 2 - canvas.getBoundingClientRect().left;
+    const cy   = (e.touches[0].clientY + e.touches[1].clientY) / 2 - canvas.getBoundingClientRect().top;
+    zoomBy(dist / lastTouchDist, cx, cy);
+    lastTouchDist = dist;
+  }
+}, { passive: true });
+
+canvas.addEventListener('touchend', () => { lastTouchDist = null; });
+
+/* ============================================================
+   INITIAL STATE: show default ref list message
+   ============================================================ */
+renderRefList();
+setStatus('Upload a field photo to begin', false);
+
+// Animate grid in background
+redraw();
+
+</script>
+</body>
+</html>
